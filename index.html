@@ -1,0 +1,777 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<title>SportPlan</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Sans:wght@300;400;500;600&display=swap');
+
+  :root {
+    --bg: #0d0f14; --surface: #161920; --surface2: #1e2230;
+    --border: #2a2f40; --accent: #e8f040; --accent2: #40e8c0;
+    --text: #f0f2f8; --muted: #6b7280; --green: #22c55e; --red: #ef4444;
+    --radius: 14px;
+    --bottom-nav: 64px;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+  html, body { height: 100%; overflow: hidden; }
+  body { background: var(--bg); color: var(--text); font-family: 'DM Sans', sans-serif; }
+
+  /* ══════════════════════════════════
+     AUTH SCREEN
+  ══════════════════════════════════ */
+  #authScreen {
+    display: none; position: fixed; inset: 0; z-index: 200;
+    align-items: center; justify-content: center;
+    background: var(--bg); padding: 20px; overflow-y: auto;
+  }
+  .auth-card {
+    width: 100%; max-width: 400px; background: var(--surface);
+    border: 1px solid var(--border); border-radius: 24px; padding: 36px 28px;
+    position: relative; overflow: hidden;
+  }
+  .auth-card::before {
+    content: ''; position: absolute; top: -80px; right: -80px; width: 220px; height: 220px;
+    border-radius: 50%; background: radial-gradient(circle, rgba(232,240,64,0.07) 0%, transparent 70%); pointer-events: none;
+  }
+  .auth-logo { font-family: 'Bebas Neue', sans-serif; font-size: 34px; letter-spacing: 4px; color: var(--accent); }
+  .auth-logo span { color: var(--text); }
+  .auth-tagline { color: var(--muted); font-size: 13px; margin: 4px 0 28px; }
+  .auth-tabs { display: flex; margin-bottom: 22px; background: var(--surface2); border-radius: 10px; padding: 4px; }
+  .auth-tab { flex: 1; padding: 10px; text-align: center; cursor: pointer; font-size: 14px; font-weight: 500; color: var(--muted); border-radius: 8px; transition: all 0.15s; border: none; background: none; font-family: 'DM Sans', sans-serif; }
+  .auth-tab.active { background: var(--accent); color: #0d0f14; }
+  .auth-form { display: flex; flex-direction: column; gap: 16px; }
+  .field-label { font-size: 11px; font-weight: 600; letter-spacing: 1px; text-transform: uppercase; color: var(--muted); margin-bottom: 6px; }
+  .field-input { width: 100%; padding: 14px 16px; background: var(--surface2); border: 1px solid var(--border); border-radius: 11px; color: var(--text); font-family: 'DM Sans', sans-serif; font-size: 16px; outline: none; transition: border 0.15s; }
+  .field-input:focus { border-color: var(--accent); box-shadow: 0 0 0 3px rgba(232,240,64,0.1); }
+  .field-input::placeholder { color: var(--muted); }
+  .auth-error { color: var(--red); font-size: 13px; text-align: center; min-height: 18px; }
+  .auth-submit { width: 100%; padding: 15px; background: var(--accent); color: #0d0f14; border: none; border-radius: 11px; font-family: 'DM Sans', sans-serif; font-size: 16px; font-weight: 600; cursor: pointer; transition: all 0.15s; margin-top: 4px; }
+  .auth-submit:active { transform: scale(0.98); background: #d4dc30; }
+  .auth-submit:disabled { opacity: 0.5; cursor: not-allowed; }
+
+  /* ══════════════════════════════════
+     APP SHELL
+  ══════════════════════════════════ */
+  #app { display: none; height: 100%; flex-direction: column; }
+
+  /* ── TOP HEADER ── */
+  .app-header {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 12px 16px; border-bottom: 1px solid var(--border);
+    background: var(--bg); position: sticky; top: 0; z-index: 50; flex-shrink: 0;
+  }
+  .logo { font-family: 'Bebas Neue', sans-serif; font-size: 22px; letter-spacing: 3px; color: var(--accent); }
+  .logo span { color: var(--text); }
+  .header-right { display: flex; align-items: center; gap: 8px; }
+  .user-badge { display: flex; align-items: center; gap: 7px; padding: 6px 11px; background: var(--surface2); border: 1px solid var(--border); border-radius: 99px; font-size: 13px; }
+  .user-avatar { width: 22px; height: 22px; border-radius: 50%; background: var(--accent); color: #0d0f14; display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 10px; flex-shrink: 0; }
+  .sync-dot { width: 7px; height: 7px; border-radius: 50%; background: var(--green); flex-shrink: 0; }
+  .sync-dot.syncing { background: var(--accent); animation: pulse 1s infinite; }
+  .sync-dot.error   { background: var(--red); }
+  @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.3} }
+  .icon-btn { width: 36px; height: 36px; border-radius: 9px; background: var(--surface2); border: 1px solid var(--border); display: flex; align-items: center; justify-content: center; cursor: pointer; font-size: 16px; color: var(--text); transition: background 0.15s; }
+  .icon-btn:active { background: var(--border); }
+
+  /* ── PROGRESS BAR ── */
+  .progbar-wrap { display: flex; align-items: center; gap: 10px; padding: 8px 16px; border-bottom: 1px solid var(--border); flex-shrink: 0; }
+  .progbar-label { font-size: 11px; color: var(--muted); white-space: nowrap; }
+  .progbar-track { flex: 1; height: 4px; background: var(--surface2); border-radius: 99px; overflow: hidden; }
+  .progbar-fill { height: 100%; background: linear-gradient(90deg, var(--accent2), var(--accent)); border-radius: 99px; transition: width 0.4s; }
+  .progbar-pct { font-size: 11px; font-weight: 600; color: var(--accent); min-width: 30px; text-align: right; }
+
+  /* ── MAIN BODY ── */
+  .app-body { flex: 1; overflow: hidden; display: flex; min-height: 0; }
+
+  /* ── SIDEBAR (desktop only) ── */
+  .sidebar { width: 180px; min-width: 180px; border-right: 1px solid var(--border); overflow-y: auto; padding: 12px 0; background: var(--surface); display: flex; flex-direction: column; flex-shrink: 0; }
+  .sidebar::-webkit-scrollbar { width: 3px; }
+  .sidebar::-webkit-scrollbar-thumb { background: var(--border); border-radius: 99px; }
+  .sb-title { font-size: 10px; font-weight: 600; letter-spacing: 2px; color: var(--muted); text-transform: uppercase; padding: 0 12px 8px; }
+  .sb-list { flex: 1; overflow-y: auto; }
+  .week-btn { display: flex; align-items: center; justify-content: space-between; padding: 9px 12px; cursor: pointer; font-size: 13px; color: var(--muted); border-left: 3px solid transparent; transition: all 0.12s; }
+  .week-btn:hover { background: var(--surface2); color: var(--text); }
+  .week-btn.active { background: rgba(232,240,64,0.06); color: var(--accent); border-left-color: var(--accent); }
+  .wdot { width: 7px; height: 7px; border-radius: 50%; background: var(--border); flex-shrink: 0; }
+  .wdot.done { background: var(--green); } .wdot.part { background: var(--accent); }
+  .add-week-btn-sb { padding: 9px 12px; background: transparent; border: none; border-top: 1px dashed var(--border); color: var(--muted); cursor: pointer; font-family: 'DM Sans', sans-serif; font-size: 12px; text-align: left; transition: all 0.12s; width: 100%; margin-top: 4px; }
+  .add-week-btn-sb:hover { background: var(--surface2); color: var(--text); }
+
+  /* ── CONTENT AREA ── */
+  .content { flex: 1; overflow-y: auto; -webkit-overflow-scrolling: touch; }
+  .content::-webkit-scrollbar { width: 4px; }
+  .content::-webkit-scrollbar-thumb { background: var(--border); border-radius: 99px; }
+
+  /* ── BOTTOM NAV (mobile only) ── */
+  .bottom-nav { display: none; position: fixed; bottom: 0; left: 0; right: 0; height: var(--bottom-nav); background: var(--surface); border-top: 1px solid var(--border); z-index: 50; }
+  .bottom-nav-inner { display: flex; height: 100%; }
+  .bnav-item { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 3px; cursor: pointer; color: var(--muted); font-size: 10px; font-weight: 500; transition: color 0.15s; border: none; background: none; font-family: 'DM Sans', sans-serif; padding: 0; }
+  .bnav-item.active { color: var(--accent); }
+  .bnav-item .bnav-icon { font-size: 20px; line-height: 1; }
+
+  /* ── WEEK SELECTOR (mobile panel) ── */
+  #weekPanel {
+    display: none; position: fixed; inset: 0; z-index: 100;
+    background: rgba(0,0,0,0.6); backdrop-filter: blur(4px);
+  }
+  .week-panel-card {
+    position: absolute; bottom: 0; left: 0; right: 0;
+    background: var(--surface); border-radius: 24px 24px 0 0;
+    padding: 20px 0 calc(20px + env(safe-area-inset-bottom));
+    max-height: 75vh; display: flex; flex-direction: column;
+  }
+  .week-panel-handle { width: 36px; height: 4px; background: var(--border); border-radius: 99px; margin: 0 auto 16px; }
+  .week-panel-title { font-family: 'Bebas Neue', sans-serif; font-size: 22px; letter-spacing: 2px; padding: 0 20px 12px; color: var(--text); }
+  .week-panel-list { flex: 1; overflow-y: auto; -webkit-overflow-scrolling: touch; }
+  .week-panel-item { display: flex; align-items: center; justify-content: space-between; padding: 14px 20px; cursor: pointer; font-size: 15px; color: var(--muted); border-bottom: 1px solid var(--border); transition: background 0.12s; }
+  .week-panel-item:active { background: var(--surface2); }
+  .week-panel-item.active { color: var(--accent); background: rgba(232,240,64,0.04); }
+  .week-panel-add { display: flex; align-items: center; gap: 10px; padding: 14px 20px; cursor: pointer; font-size: 15px; color: var(--accent2); border: none; background: none; font-family: 'DM Sans', sans-serif; width: 100%; text-align: left; }
+
+  /* ── WEEK VIEW ── */
+  .week-view-wrap { padding: 16px 16px calc(var(--bottom-nav) + 16px); }
+
+  .week-hdr { margin-bottom: 16px; }
+  .week-hdr h1 { font-family: 'Bebas Neue', sans-serif; font-size: 36px; letter-spacing: 2px; line-height: 1; }
+  .week-hdr h1 span { color: var(--accent); }
+  .week-hdr p { color: var(--muted); font-size: 12px; margin-top: 3px; }
+  .wstats { display: flex; gap: 8px; margin-top: 10px; flex-wrap: wrap; }
+  .stat-chip { display: flex; align-items: center; gap: 5px; padding: 4px 10px; background: var(--surface); border: 1px solid var(--border); border-radius: 99px; font-size: 11px; }
+  .chip-dot { width: 6px; height: 6px; border-radius: 50%; }
+
+  /* ── EXERCISE CARDS ── */
+  .day-block { margin-bottom: 12px; background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); overflow: hidden; }
+  .day-block-header { display: flex; align-items: center; padding: 12px 16px; border-bottom: 1px solid var(--border); background: var(--surface2); }
+  .day-label { font-weight: 600; color: var(--accent2); font-size: 13px; flex: 1; }
+  .day-progress { font-size: 11px; color: var(--muted); }
+
+  .exercise-row { display: flex; align-items: center; gap: 12px; padding: 14px 16px; border-bottom: 1px solid rgba(255,255,255,0.04); }
+  .exercise-row:last-child { border-bottom: none; }
+  .exercise-row.v-ok { background: rgba(34,197,94,0.05); }
+  .exercise-row.v-ko { background: rgba(239,68,68,0.05); }
+
+  .ex-multi-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--accent); opacity: 0.5; flex-shrink: 0; }
+  .ex-name-text { flex: 1; font-size: 15px; line-height: 1.4; color: var(--text); }
+
+  /* Validation buttons — big tap targets */
+  .val-btns { display: flex; gap: 8px; flex-shrink: 0; }
+  .val-btn {
+    width: 44px; height: 44px; border-radius: 11px; border: 1px solid var(--border);
+    background: var(--surface2); cursor: pointer; font-size: 18px;
+    display: flex; align-items: center; justify-content: center; transition: all 0.12s;
+    color: var(--muted);
+  }
+  .val-btn:active { transform: scale(0.92); }
+  .val-btn.active-ok { background: rgba(34,197,94,0.2); border-color: var(--green); color: var(--green); }
+  .val-btn.active-ko { background: rgba(239,68,68,0.2); border-color: var(--red);   color: var(--red); }
+
+  /* ── ADD ROW BTN ── */
+  .add-row-card { display: flex; align-items: center; justify-content: center; gap: 8px; padding: 14px; background: var(--surface); border: 1px dashed var(--border); border-radius: var(--radius); cursor: pointer; color: var(--muted); font-size: 14px; margin-bottom: 12px; transition: all 0.15s; }
+  .add-row-card:active { background: var(--surface2); color: var(--text); }
+
+  /* ── EMPTY STATE ── */
+  .empty-state { display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 60vh; gap: 16px; text-align: center; padding: 20px; }
+  .empty-icon { font-size: 52px; opacity: 0.3; }
+  .empty-state h2 { font-family: 'Bebas Neue', sans-serif; font-size: 26px; letter-spacing: 2px; color: var(--muted); }
+  .empty-state p { color: var(--muted); font-size: 14px; max-width: 280px; line-height: 1.6; }
+  .empty-btns { display: flex; gap: 10px; flex-wrap: wrap; justify-content: center; margin-top: 4px; }
+  .btn { display: inline-flex; align-items: center; gap: 7px; padding: 12px 20px; border-radius: 11px; border: none; cursor: pointer; font-family: 'DM Sans', sans-serif; font-size: 14px; font-weight: 500; transition: all 0.15s; }
+  .btn-primary { background: var(--accent); color: #0d0f14; }
+  .btn-primary:active { background: #d4dc30; transform: scale(0.97); }
+  .btn-ghost { background: var(--surface2); color: var(--text); border: 1px solid var(--border); }
+  .btn-ghost:active { background: var(--border); }
+  .btn-danger { background: transparent; color: var(--red); border: 1px solid rgba(239,68,68,0.3); }
+  .btn-sm { padding: 8px 14px; font-size: 13px; border-radius: 8px; }
+
+  /* ── PROFILE PANEL ── */
+  #profilePanel {
+    display: none; position: fixed; inset: 0; z-index: 100;
+    background: rgba(0,0,0,0.6); backdrop-filter: blur(4px);
+  }
+  .profile-card {
+    position: absolute; bottom: 0; left: 0; right: 0;
+    background: var(--surface); border-radius: 24px 24px 0 0;
+    padding: 20px 20px calc(20px + env(safe-area-inset-bottom));
+  }
+  .profile-handle { width: 36px; height: 4px; background: var(--border); border-radius: 99px; margin: 0 auto 20px; }
+  .profile-user { display: flex; align-items: center; gap: 14px; margin-bottom: 24px; }
+  .profile-avatar-big { width: 52px; height: 52px; border-radius: 50%; background: var(--accent); color: #0d0f14; display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 22px; flex-shrink: 0; }
+  .profile-name { font-size: 18px; font-weight: 600; }
+  .profile-sub { font-size: 12px; color: var(--muted); margin-top: 2px; }
+  .profile-actions { display: flex; flex-direction: column; gap: 10px; }
+  .profile-btn { width: 100%; padding: 14px 16px; border-radius: 12px; border: none; cursor: pointer; font-family: 'DM Sans', sans-serif; font-size: 15px; font-weight: 500; text-align: left; transition: all 0.15s; display: flex; align-items: center; gap: 12px; }
+  .profile-btn:active { transform: scale(0.98); }
+  .profile-btn-import { background: var(--surface2); color: var(--text); border: 1px solid var(--border); }
+  .profile-btn-save   { background: var(--accent); color: #0d0f14; }
+  .profile-btn-logout { background: rgba(239,68,68,0.08); color: var(--red); border: 1px solid rgba(239,68,68,0.2); }
+
+  /* ── TOAST ── */
+  .toast { position: fixed; bottom: calc(var(--bottom-nav) + 12px); left: 16px; right: 16px; background: var(--surface2); border: 1px solid var(--border); border-radius: 11px; padding: 12px 16px; font-size: 14px; z-index: 9999; transform: translateY(20px); opacity: 0; transition: all 0.25s; box-shadow: 0 8px 24px rgba(0,0,0,0.5); text-align: center; }
+  .toast.show { transform: translateY(0); opacity: 1; }
+  .toast.ok   { border-color: var(--green); color: var(--green); }
+  .toast.err  { border-color: var(--red);   color: var(--red); }
+  .toast.info { border-color: var(--accent2); color: var(--accent2); }
+
+  #fileInput { display: none; }
+
+  /* ══════════════════════════════════
+     RESPONSIVE — MOBILE
+  ══════════════════════════════════ */
+  @media (max-width: 640px) {
+    .sidebar { display: none; }
+    .bottom-nav { display: block; }
+    .week-view-wrap { padding-bottom: calc(var(--bottom-nav) + 20px); }
+    .toast { bottom: calc(var(--bottom-nav) + 12px); }
+    /* Desktop header buttons hidden on mobile */
+    .desktop-only { display: none !important; }
+  }
+
+  /* ══════════════════════════════════
+     RESPONSIVE — DESKTOP
+  ══════════════════════════════════ */
+  @media (min-width: 641px) {
+    .bottom-nav { display: none; }
+    #weekPanel { display: none !important; }
+    #profilePanel { display: none !important; }
+    .mobile-only { display: none !important; }
+    .week-view-wrap { padding: 24px 28px; }
+    .toast { left: auto; right: 24px; bottom: 24px; width: auto; max-width: 340px; text-align: left; }
+
+    /* Desktop table layout */
+    .day-block { border-radius: var(--radius); }
+  }
+</style>
+</head>
+<body>
+
+<!-- ══ AUTH ══ -->
+<div id="authScreen">
+  <div class="auth-card">
+    <div class="auth-logo">SPORT<span>PLAN</span></div>
+    <div class="auth-tagline">Ton planning sportif, disponible partout</div>
+    <div class="auth-tabs">
+      <button class="auth-tab active" id="tabLogin"    onclick="switchTab('login')">Se connecter</button>
+      <button class="auth-tab"        id="tabRegister" onclick="switchTab('register')">Créer un compte</button>
+    </div>
+    <div class="auth-form">
+      <div>
+        <div class="field-label">Nom d'utilisateur</div>
+        <input class="field-input" id="authUser" type="text" placeholder="ex: jean_sport" autocomplete="username" autocapitalize="none">
+      </div>
+      <div>
+        <div class="field-label">Mot de passe</div>
+        <input class="field-input" id="authPass" type="password" placeholder="••••••••" autocomplete="current-password">
+      </div>
+      <div id="authConfirmWrap" style="display:none">
+        <div class="field-label">Confirmer le mot de passe</div>
+        <input class="field-input" id="authConfirm" type="password" placeholder="••••••••">
+      </div>
+      <div class="auth-error" id="authError"></div>
+      <button class="auth-submit" id="authBtn" onclick="handleAuth()">Se connecter</button>
+    </div>
+  </div>
+</div>
+
+<!-- ══ APP ══ -->
+<div id="app" style="display:flex; flex-direction:column; height:100%">
+
+  <!-- Top header -->
+  <div class="app-header">
+    <div class="logo">SPORT<span>PLAN</span></div>
+    <div class="header-right">
+      <div class="sync-dot" id="syncDot"></div>
+      <!-- Desktop only -->
+      <div class="user-badge desktop-only">
+        <div class="user-avatar" id="userAvatarD">?</div>
+        <span id="userLabelD">—</span>
+      </div>
+      <button class="icon-btn desktop-only" onclick="document.getElementById('fileInput').click()" title="Importer Excel">📂</button>
+      <button class="btn btn-primary btn-sm desktop-only" onclick="syncSave()">☁️ Sauvegarder</button>
+      <button class="btn btn-danger btn-sm desktop-only" onclick="logout()">Déconnexion</button>
+      <!-- Mobile only -->
+      <button class="icon-btn mobile-only" onclick="openProfile()">👤</button>
+    </div>
+  </div>
+
+  <!-- Progress bar -->
+  <div class="progbar-wrap">
+    <span class="progbar-label">Progression</span>
+    <div class="progbar-track"><div class="progbar-fill" id="gFill" style="width:0%"></div></div>
+    <span class="progbar-pct" id="gPct">0%</span>
+  </div>
+
+  <!-- Body -->
+  <div class="app-body">
+    <!-- Sidebar (desktop) -->
+    <div class="sidebar">
+      <div class="sb-title">Semaines</div>
+      <div class="sb-list" id="sbList"></div>
+      <button class="add-week-btn-sb" onclick="addWeek()">+ Ajouter une semaine</button>
+    </div>
+
+    <!-- Content -->
+    <div class="content" id="content">
+      <div class="week-view-wrap">
+        <div class="empty-state" id="emptyState">
+          <div class="empty-icon">🏋️</div>
+          <h2>Aucun planning</h2>
+          <p>Importez un fichier Excel ou créez une semaine manuellement.</p>
+          <div class="empty-btns">
+            <button class="btn btn-primary" onclick="document.getElementById('fileInput').click()">📂 Importer Excel</button>
+            <button class="btn btn-ghost" onclick="addWeek()">+ Créer une semaine</button>
+          </div>
+        </div>
+        <div id="weekView" style="display:none"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Bottom navigation (mobile) -->
+  <nav class="bottom-nav">
+    <div class="bottom-nav-inner">
+      <button class="bnav-item active" id="bnavHome" onclick="bnavGo('home')">
+        <span class="bnav-icon">🏠</span>Planning
+      </button>
+      <button class="bnav-item" id="bnavWeeks" onclick="openWeekPanel()">
+        <span class="bnav-icon">📅</span>Semaines
+      </button>
+      <button class="bnav-item" id="bnavAdd" onclick="addWeek()">
+        <span class="bnav-icon">➕</span>Ajouter
+      </button>
+    </div>
+  </nav>
+</div>
+
+<!-- ══ WEEK PANEL (mobile) ══ -->
+<div id="weekPanel" onclick="closeWeekPanel(event)">
+  <div class="week-panel-card" id="weekPanelCard">
+    <div class="week-panel-handle"></div>
+    <div class="week-panel-title">Semaines</div>
+    <div class="week-panel-list" id="weekPanelList"></div>
+    <button class="week-panel-add" onclick="addWeek(); closeWeekPanel()">➕ Ajouter une semaine</button>
+  </div>
+</div>
+
+<!-- ══ PROFILE PANEL (mobile) ══ -->
+<div id="profilePanel" onclick="closeProfile(event)">
+  <div class="profile-card" id="profileCard">
+    <div class="profile-handle"></div>
+    <div class="profile-user">
+      <div class="profile-avatar-big" id="profileAvatar">?</div>
+      <div>
+        <div class="profile-name" id="profileName">—</div>
+        <div class="profile-sub">Compte SportPlan</div>
+      </div>
+    </div>
+    <div class="profile-actions">
+      <button class="profile-btn profile-btn-import" onclick="document.getElementById('fileInput').click(); closeProfile()">📂 Importer un fichier Excel</button>
+      <button class="profile-btn profile-btn-save"   onclick="syncSave(); closeProfile()">☁️ Sauvegarder maintenant</button>
+      <button class="profile-btn profile-btn-logout" onclick="logout()">🚪 Se déconnecter</button>
+    </div>
+  </div>
+</div>
+
+<input type="file" id="fileInput" accept=".xlsx,.xls" onchange="onImport(event)">
+<div class="toast" id="toast"></div>
+
+<script>
+const SUPABASE_URL = 'https://nntjzvtjogttsyblncsu.supabase.co';
+const SUPABASE_KEY = 'sb_publishable_sAU1qKtqj0iv4BZMsoUHlw_xxYB57Xp';
+
+let weeks = [];
+let cur = 0;
+let currentUser = null;
+let authMode = 'login';
+
+// ── INIT ──────────────────────────────────────────
+window.onload = () => {
+  const savedUser = sessionStorage.getItem('sp_user');
+  if (savedUser) {
+    currentUser = savedUser;
+    loadPlanning().then(() => showApp()).catch(() => showScreen('auth'));
+  } else {
+    showScreen('auth');
+  }
+};
+
+function showScreen(name) {
+  document.getElementById('authScreen').style.display = name === 'auth' ? 'flex' : 'none';
+  document.getElementById('app').style.display        = name === 'app'  ? 'flex' : 'none';
+}
+
+// ── SUPABASE ──────────────────────────────────────
+function sbFetch(method, path, body) {
+  return fetch(SUPABASE_URL + path, {
+    method,
+    headers: { 'Content-Type': 'application/json', 'apikey': SUPABASE_KEY, 'Authorization': 'Bearer ' + SUPABASE_KEY, 'Prefer': method === 'POST' ? 'return=representation' : '' },
+    body: body ? JSON.stringify(body) : undefined
+  });
+}
+async function sbGet(path) {
+  const r = await sbFetch('GET', path);
+  if (!r.ok) { const e = await r.json(); throw new Error(e.message || e.hint); }
+  return r.json();
+}
+async function sbPost(path, body) {
+  const r = await sbFetch('POST', path, body);
+  if (!r.ok) { const e = await r.json(); throw new Error(e.message || e.hint); }
+  return r.json();
+}
+async function sbPatch(path, body) {
+  const r = await sbFetch('PATCH', path, body);
+  if (!r.ok) { const e = await r.json(); throw new Error(e.message || e.hint); }
+  return r.status === 204 ? {} : r.json();
+}
+
+async function hashPass(p) {
+  const buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode('sp_salt_' + p));
+  return Array.from(new Uint8Array(buf)).map(b => b.toString(16).padStart(2,'0')).join('');
+}
+
+// ── AUTH ──────────────────────────────────────────
+function switchTab(mode) {
+  authMode = mode;
+  document.getElementById('tabLogin').classList.toggle('active', mode === 'login');
+  document.getElementById('tabRegister').classList.toggle('active', mode === 'register');
+  document.getElementById('authConfirmWrap').style.display = mode === 'register' ? 'block' : 'none';
+  document.getElementById('authBtn').textContent = mode === 'login' ? 'Se connecter' : 'Créer mon compte';
+  document.getElementById('authError').textContent = '';
+}
+
+async function handleAuth() {
+  const username = document.getElementById('authUser').value.trim().toLowerCase();
+  const password = document.getElementById('authPass').value;
+  const confirm  = document.getElementById('authConfirm').value;
+  const errEl = document.getElementById('authError');
+  const btn   = document.getElementById('authBtn');
+  errEl.textContent = '';
+  if (!username || !password) { errEl.textContent = 'Remplis tous les champs.'; return; }
+  if (username.length < 3)   { errEl.textContent = 'Nom trop court (min 3 caractères).'; return; }
+  if (password.length < 4)   { errEl.textContent = 'Mot de passe trop court (min 4 caractères).'; return; }
+  if (authMode === 'register' && password !== confirm) { errEl.textContent = 'Les mots de passe ne correspondent pas.'; return; }
+  btn.disabled = true; btn.textContent = '⏳ Chargement…';
+  try {
+    const hashed = await hashPass(password);
+    if (authMode === 'register') {
+      const existing = await sbGet(`/rest/v1/users?username=eq.${encodeURIComponent(username)}&select=username`);
+      if (existing.length > 0) throw new Error('Ce nom d\'utilisateur est déjà pris.');
+      await sbPost('/rest/v1/users', { username, password_hash: hashed, planning: [] });
+      currentUser = username; weeks = [];
+    } else {
+      const rows = await sbGet(`/rest/v1/users?username=eq.${encodeURIComponent(username)}&select=username,password_hash,planning`);
+      if (rows.length === 0)               throw new Error('Utilisateur introuvable.');
+      if (rows[0].password_hash !== hashed) throw new Error('Mot de passe incorrect.');
+      currentUser = username; weeks = rows[0].planning || [];
+    }
+    sessionStorage.setItem('sp_user', currentUser);
+    showApp();
+  } catch(e) {
+    errEl.textContent = e.message || 'Erreur de connexion.';
+    btn.disabled = false;
+    btn.textContent = authMode === 'login' ? 'Se connecter' : 'Créer mon compte';
+  }
+}
+
+document.addEventListener('keydown', e => {
+  if (e.key === 'Enter' && document.getElementById('authScreen').style.display !== 'none') handleAuth();
+});
+
+// ── LOAD / SAVE ───────────────────────────────────
+async function loadPlanning() {
+  const rows = await sbGet(`/rest/v1/users?username=eq.${encodeURIComponent(currentUser)}&select=planning`);
+  if (rows.length === 0) throw new Error('Utilisateur introuvable.');
+  weeks = rows[0].planning || [];
+}
+
+async function syncSave() {
+  try {
+    setSyncState('syncing');
+    await sbPatch(`/rest/v1/users?username=eq.${encodeURIComponent(currentUser)}`, { planning: weeks });
+    setSyncState('ok');
+    showToast('Sauvegardé ☁️', 'ok');
+  } catch(e) { setSyncState('error'); showToast('Erreur de sauvegarde', 'err'); }
+}
+
+let autoSaveTimer;
+function scheduleAutoSave() {
+  clearTimeout(autoSaveTimer);
+  setSyncState('syncing');
+  autoSaveTimer = setTimeout(async () => {
+    try { await sbPatch(`/rest/v1/users?username=eq.${encodeURIComponent(currentUser)}`, { planning: weeks }); setSyncState('ok'); }
+    catch(e) { setSyncState('error'); }
+  }, 2000);
+}
+
+function setSyncState(s) {
+  const d = document.getElementById('syncDot'); if (!d) return;
+  d.className = 'sync-dot' + (s === 'syncing' ? ' syncing' : s === 'error' ? ' error' : '');
+}
+
+// ── SHOW APP ──────────────────────────────────────
+function showApp() {
+  showScreen('app');
+  const initials = currentUser.charAt(0).toUpperCase();
+  document.getElementById('userAvatarD').textContent = initials;
+  document.getElementById('userLabelD').textContent  = currentUser;
+  document.getElementById('profileAvatar').textContent = initials;
+  document.getElementById('profileName').textContent   = currentUser;
+  setSyncState('ok');
+  renderSidebar();
+  if (weeks.length) showWeek(0);
+}
+
+function logout() {
+  currentUser = null; weeks = [];
+  sessionStorage.removeItem('sp_user');
+  closeProfile();
+  document.getElementById('weekView').style.display = 'none';
+  document.getElementById('emptyState').style.display = 'flex';
+  document.getElementById('sbList').innerHTML = '';
+  showScreen('auth');
+}
+
+// ── IMPORT ────────────────────────────────────────
+function onImport(e) {
+  const file = e.target.files[0]; if (!file) return;
+  const reader = new FileReader();
+  reader.onload = ev => {
+    try {
+      const wb = XLSX.read(new Uint8Array(ev.target.result), { type: 'array' });
+      weeks = [];
+      for (const sheetName of wb.SheetNames) {
+        const raw = XLSX.utils.sheet_to_json(wb.Sheets[sheetName], { header: 1, defval: '' });
+        const rows = [];
+        for (const r of raw) {
+          const day  = String(r[0] || '').trim();
+          const prog = String(r[1] || '').trim();
+          if (!day && !prog) continue;
+          rows.push({ day, exercises: parseExercises(prog) });
+        }
+        weeks.push({ name: sheetName, rows });
+      }
+      renderSidebar(); if (weeks.length) showWeek(0);
+      scheduleAutoSave();
+      showToast(`${weeks.length} semaine(s) importée(s) !`, 'ok');
+    } catch(err) { showToast('Erreur import', 'err'); }
+  };
+  reader.readAsArrayBuffer(file);
+  e.target.value = '';
+}
+
+function parseExercises(prog) {
+  if (!prog) return [{ name: '', valid: '' }];
+  if (prog.includes('/')) return prog.split('/').map(s => ({ name: s.trim(), valid: '' }));
+  return [{ name: prog, valid: '' }];
+}
+
+// ── SIDEBAR ───────────────────────────────────────
+function renderSidebar() {
+  const list = document.getElementById('sbList');
+  list.innerHTML = '';
+  weeks.forEach((w, i) => {
+    const { done, total } = weekStats(i);
+    const dot = total === 0 ? '' : done === total ? 'done' : done > 0 ? 'part' : '';
+    const el = document.createElement('div');
+    el.className = 'week-btn' + (i === cur ? ' active' : '');
+    el.innerHTML = `<span>${esc(w.name)}</span><div class="wdot ${dot}"></div>`;
+    el.onclick = () => showWeek(i);
+    list.appendChild(el);
+  });
+  updateGlobalBar();
+}
+
+function weekStats(wi) {
+  let done = 0, total = 0;
+  for (const row of weeks[wi].rows)
+    for (const ex of row.exercises)
+      if (ex.name) { total++; if (ex.valid === '1') done++; }
+  return { done, total };
+}
+
+function updateGlobalBar() {
+  let done = 0, total = 0;
+  weeks.forEach((_, i) => { const s = weekStats(i); done += s.done; total += s.total; });
+  const pct = total > 0 ? Math.round(done / total * 100) : 0;
+  document.getElementById('gFill').style.width = pct + '%';
+  document.getElementById('gPct').textContent = pct + '%';
+}
+
+// ── SHOW WEEK ─────────────────────────────────────
+function showWeek(i) {
+  cur = i;
+  document.getElementById('emptyState').style.display = 'none';
+  document.getElementById('weekView').style.display = 'block';
+  document.querySelectorAll('.week-btn').forEach((el, j) => el.classList.toggle('active', j === i));
+  renderWeekView(i);
+}
+
+function renderWeekView(wi) {
+  const w = weeks[wi];
+  const { done, total } = weekStats(wi);
+  const pct = total > 0 ? Math.round(done / total * 100) : 0;
+  const view = document.getElementById('weekView');
+  view.innerHTML = `
+    <div class="week-hdr">
+      <h1>Semaine <span>${esc(w.name)}</span></h1>
+      <p>Appuie sur ✔ pour valider, ✖ pour marquer un raté</p>
+      <div class="wstats" id="wstats">
+        <div class="stat-chip"><div class="chip-dot" style="background:var(--green)"></div>${done}/${total} validés</div>
+        <div class="stat-chip"><div class="chip-dot" style="background:var(--accent)"></div>${pct}%</div>
+      </div>
+    </div>
+    <div id="dayBlocks"></div>
+    <button class="add-row-card" onclick="addRow(${wi})">➕ Ajouter une séance</button>
+  `;
+  renderDayBlocks(wi);
+}
+
+function renderDayBlocks(wi) {
+  const container = document.getElementById('dayBlocks');
+  if (!container) return;
+  container.innerHTML = '';
+  const w = weeks[wi];
+
+  w.rows.forEach((row, ri) => {
+    const exs = row.exercises;
+    const multi = exs.length > 1;
+    const rowDone = exs.filter(e => e.valid === '1').length;
+
+    const block = document.createElement('div');
+    block.className = 'day-block';
+
+    // Header
+    const hdr = document.createElement('div');
+    hdr.className = 'day-block-header';
+    hdr.innerHTML = `<span class="day-label">${esc(row.day) || '<span style="color:var(--muted)">Jour</span>'}</span><span class="day-progress">${multi ? rowDone + '/' + exs.length : ''}</span>`;
+    block.appendChild(hdr);
+
+    // Exercises
+    exs.forEach((ex, ei) => {
+      const vClass = ex.valid === '1' ? 'v-ok' : ex.valid === '0' ? 'v-ko' : '';
+      const row2 = document.createElement('div');
+      row2.className = 'exercise-row' + (vClass ? ' ' + vClass : '');
+
+      if (multi) {
+        const dot = document.createElement('div');
+        dot.className = 'ex-multi-dot';
+        row2.appendChild(dot);
+      }
+
+      const name = document.createElement('div');
+      name.className = 'ex-name-text';
+      name.textContent = ex.name || '—';
+      row2.appendChild(name);
+
+      // Tap buttons ✔ / ✖
+      const btns = document.createElement('div');
+      btns.className = 'val-btns';
+
+      const btnOk = document.createElement('button');
+      btnOk.className = 'val-btn' + (ex.valid === '1' ? ' active-ok' : '');
+      btnOk.textContent = '✔';
+      btnOk.onclick = () => tapValid(wi, ri, ei, ex.valid === '1' ? '' : '1');
+
+      const btnKo = document.createElement('button');
+      btnKo.className = 'val-btn' + (ex.valid === '0' ? ' active-ko' : '');
+      btnKo.textContent = '✖';
+      btnKo.onclick = () => tapValid(wi, ri, ei, ex.valid === '0' ? '' : '0');
+
+      btns.appendChild(btnOk);
+      btns.appendChild(btnKo);
+      row2.appendChild(btns);
+      block.appendChild(row2);
+    });
+
+    container.appendChild(block);
+  });
+}
+
+function tapValid(wi, ri, ei, newVal) {
+  weeks[wi].rows[ri].exercises[ei].valid = newVal;
+  renderDayBlocks(wi);
+  updateStatsChips(wi);
+  renderSidebar();
+  scheduleAutoSave();
+}
+
+function updateStatsChips(wi) {
+  const el = document.getElementById('wstats'); if (!el) return;
+  const { done, total } = weekStats(wi);
+  const pct = total > 0 ? Math.round(done / total * 100) : 0;
+  el.innerHTML = `
+    <div class="stat-chip"><div class="chip-dot" style="background:var(--green)"></div>${done}/${total} validés</div>
+    <div class="stat-chip"><div class="chip-dot" style="background:var(--accent)"></div>${pct}%</div>
+  `;
+}
+
+// ── ADD ───────────────────────────────────────────
+function addWeek() {
+  closeWeekPanel();
+  weeks.push({ name: 'S' + (weeks.length + 1), rows: [
+    { day: 'Lundi',    exercises: [{ name: '', valid: '' }] },
+    { day: 'Mercredi', exercises: [{ name: '', valid: '' }] },
+    { day: 'Vendredi', exercises: [{ name: '', valid: '' }] },
+  ]});
+  renderSidebar(); showWeek(weeks.length - 1); scheduleAutoSave();
+}
+
+function addRow(wi) {
+  weeks[wi].rows.push({ day: '', exercises: [{ name: '', valid: '' }] });
+  renderDayBlocks(wi); updateStatsChips(wi); scheduleAutoSave();
+}
+
+// ── MOBILE PANELS ─────────────────────────────────
+function openWeekPanel() {
+  const list = document.getElementById('weekPanelList');
+  list.innerHTML = '';
+  weeks.forEach((w, i) => {
+    const { done, total } = weekStats(i);
+    const dot = total === 0 ? '' : done === total ? 'done' : done > 0 ? 'part' : '';
+    const el = document.createElement('div');
+    el.className = 'week-panel-item' + (i === cur ? ' active' : '');
+    el.innerHTML = `<span>${esc(w.name)}</span><div class="wdot ${dot}"></div>`;
+    el.onclick = () => { showWeek(i); closeWeekPanel(); };
+    list.appendChild(el);
+  });
+  document.getElementById('weekPanel').style.display = 'block';
+}
+
+function closeWeekPanel(e) {
+  if (!e || !document.getElementById('weekPanelCard').contains(e.target))
+    document.getElementById('weekPanel').style.display = 'none';
+}
+
+function openProfile() {
+  document.getElementById('profilePanel').style.display = 'block';
+}
+
+function closeProfile(e) {
+  if (!e || !document.getElementById('profileCard').contains(e.target))
+    document.getElementById('profilePanel').style.display = 'none';
+}
+
+function bnavGo(tab) {
+  document.querySelectorAll('.bnav-item').forEach(el => el.classList.remove('active'));
+  document.getElementById('bnavHome').classList.add('active');
+}
+
+// ── TOAST ─────────────────────────────────────────
+let _tt;
+function showToast(msg, type) {
+  const t = document.getElementById('toast');
+  t.textContent = msg; t.className = 'toast show ' + (type || '');
+  clearTimeout(_tt); _tt = setTimeout(() => t.className = 'toast', 3000);
+}
+
+function esc(s) {
+  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+</script>
+</body>
+</html>
