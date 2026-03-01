@@ -1,0 +1,1235 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<title>SportPlan</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Sans:wght@300;400;500;600&display=swap');
+
+  :root {
+    --bg:#0d0f14; --surface:#161920; --surface2:#1e2230;
+    --border:#2a2f40; --accent:#e8f040; --accent2:#40e8c0;
+    --text:#f0f2f8; --muted:#6b7280; --green:#22c55e; --red:#ef4444;
+    --radius:14px; --bottom-nav:64px;
+  }
+  *{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent;}
+  html,body{height:100%;overflow:hidden;}
+  body{background:var(--bg);color:var(--text);font-family:'DM Sans',sans-serif;}
+
+  /* ════ AUTH ════ */
+  #authScreen{display:none;position:fixed;inset:0;z-index:200;align-items:center;justify-content:center;background:var(--bg);padding:20px;overflow-y:auto;}
+  .auth-card{width:100%;max-width:400px;background:var(--surface);border:1px solid var(--border);border-radius:24px;padding:36px 28px;position:relative;overflow:hidden;}
+  .auth-card::before{content:'';position:absolute;top:-80px;right:-80px;width:220px;height:220px;border-radius:50%;background:radial-gradient(circle,rgba(232,240,64,0.07) 0%,transparent 70%);pointer-events:none;}
+  .auth-logo{font-family:'Bebas Neue',sans-serif;font-size:34px;letter-spacing:4px;color:var(--accent);}
+  .auth-logo span{color:var(--text);}
+  .auth-tagline{color:var(--muted);font-size:13px;margin:4px 0 28px;}
+  .auth-tabs{display:flex;margin-bottom:22px;background:var(--surface2);border-radius:10px;padding:4px;}
+  .auth-tab{flex:1;padding:10px;text-align:center;cursor:pointer;font-size:14px;font-weight:500;color:var(--muted);border-radius:8px;transition:all 0.15s;border:none;background:none;font-family:'DM Sans',sans-serif;}
+  .auth-tab.active{background:var(--accent);color:#0d0f14;}
+  .auth-form{display:flex;flex-direction:column;gap:16px;}
+  .field-label{font-size:11px;font-weight:600;letter-spacing:1px;text-transform:uppercase;color:var(--muted);margin-bottom:6px;}
+  .field-input{width:100%;padding:14px 16px;background:var(--surface2);border:1px solid var(--border);border-radius:11px;color:var(--text);font-family:'DM Sans',sans-serif;font-size:16px;outline:none;transition:border 0.15s;}
+  .field-input:focus{border-color:var(--accent);box-shadow:0 0 0 3px rgba(232,240,64,0.1);}
+  .field-input::placeholder{color:var(--muted);}
+  .auth-error{color:var(--red);font-size:13px;text-align:center;min-height:18px;}
+  .auth-submit{width:100%;padding:15px;background:var(--accent);color:#0d0f14;border:none;border-radius:11px;font-family:'DM Sans',sans-serif;font-size:16px;font-weight:600;cursor:pointer;transition:all 0.15s;margin-top:4px;}
+  .auth-submit:active{transform:scale(0.98);background:#d4dc30;}
+  .auth-submit:disabled{opacity:0.5;cursor:not-allowed;}
+
+  /* ════ APP ════ */
+  #app{display:none;height:100%;flex-direction:column;}
+  .app-header{display:flex;align-items:center;justify-content:space-between;padding:12px 16px;border-bottom:1px solid var(--border);background:var(--bg);position:sticky;top:0;z-index:50;flex-shrink:0;}
+  .logo{font-family:'Bebas Neue',sans-serif;font-size:22px;letter-spacing:3px;color:var(--accent);}
+  .logo span{color:var(--text);}
+  .header-right{display:flex;align-items:center;gap:8px;}
+  .user-badge{display:flex;align-items:center;gap:7px;padding:6px 11px;background:var(--surface2);border:1px solid var(--border);border-radius:99px;font-size:13px;}
+  .user-avatar{width:22px;height:22px;border-radius:50%;background:var(--accent);color:#0d0f14;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:10px;flex-shrink:0;}
+  .sync-dot{width:7px;height:7px;border-radius:50%;background:var(--green);flex-shrink:0;}
+  .sync-dot.syncing{background:var(--accent);animation:pulse 1s infinite;}
+  .sync-dot.error{background:var(--red);}
+  @keyframes pulse{0%,100%{opacity:1}50%{opacity:0.3}}
+  .icon-btn{width:36px;height:36px;border-radius:9px;background:var(--surface2);border:1px solid var(--border);display:flex;align-items:center;justify-content:center;cursor:pointer;font-size:16px;color:var(--text);transition:background 0.15s;}
+  .icon-btn:active{background:var(--border);}
+  .btn{display:inline-flex;align-items:center;gap:7px;padding:12px 20px;border-radius:11px;border:none;cursor:pointer;font-family:'DM Sans',sans-serif;font-size:14px;font-weight:500;transition:all 0.15s;}
+  .btn-primary{background:var(--accent);color:#0d0f14;}
+  .btn-primary:active{background:#d4dc30;transform:scale(0.97);}
+  .btn-ghost{background:var(--surface2);color:var(--text);border:1px solid var(--border);}
+  .btn-ghost:active{background:var(--border);}
+  .btn-danger{background:transparent;color:var(--red);border:1px solid rgba(239,68,68,0.3);}
+  .btn-sm{padding:8px 14px;font-size:13px;border-radius:8px;}
+
+  .progbar-wrap{display:flex;align-items:center;gap:10px;padding:8px 16px;border-bottom:1px solid var(--border);flex-shrink:0;}
+  .progbar-label{font-size:11px;color:var(--muted);white-space:nowrap;}
+  .progbar-track{flex:1;height:4px;background:var(--surface2);border-radius:99px;overflow:hidden;}
+  .progbar-fill{height:100%;background:linear-gradient(90deg,var(--accent2),var(--accent));border-radius:99px;transition:width 0.4s;}
+  .progbar-pct{font-size:11px;font-weight:600;color:var(--accent);min-width:30px;text-align:right;}
+
+  .app-body{flex:1;overflow:hidden;display:flex;min-height:0;}
+  .sidebar{width:180px;min-width:180px;border-right:1px solid var(--border);overflow-y:auto;padding:12px 0;background:var(--surface);display:flex;flex-direction:column;flex-shrink:0;}
+  .sidebar::-webkit-scrollbar{width:3px;}
+  .sidebar::-webkit-scrollbar-thumb{background:var(--border);border-radius:99px;}
+  .sb-title{font-size:10px;font-weight:600;letter-spacing:2px;color:var(--muted);text-transform:uppercase;padding:0 12px 8px;}
+  .sb-list{flex:1;overflow-y:auto;}
+  .week-btn{display:flex;align-items:center;justify-content:space-between;padding:9px 12px;cursor:pointer;font-size:13px;color:var(--muted);border-left:3px solid transparent;transition:all 0.12s;}
+  .week-btn:hover{background:var(--surface2);color:var(--text);}
+  .week-btn.active{background:rgba(232,240,64,0.06);color:var(--accent);border-left-color:var(--accent);}
+  .wdot{width:7px;height:7px;border-radius:50%;background:var(--border);flex-shrink:0;}
+  .wdot.done{background:var(--green);}.wdot.part{background:var(--accent);}
+  .sb-add-btn{padding:9px 12px;background:transparent;border:none;border-top:1px dashed var(--border);color:var(--muted);cursor:pointer;font-family:'DM Sans',sans-serif;font-size:12px;text-align:left;transition:all 0.12s;width:100%;margin-top:4px;}
+  .sb-add-btn:hover{background:var(--surface2);color:var(--text);}
+
+  .content{flex:1;overflow-y:auto;-webkit-overflow-scrolling:touch;}
+  .content::-webkit-scrollbar{width:4px;}
+  .content::-webkit-scrollbar-thumb{background:var(--border);border-radius:99px;}
+
+  /* ════ BOTTOM NAV ════ */
+  .bottom-nav{display:none;position:fixed;bottom:0;left:0;right:0;height:var(--bottom-nav);background:var(--surface);border-top:1px solid var(--border);z-index:50;}
+  .bottom-nav-inner{display:flex;height:100%;}
+  .bnav-item{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;cursor:pointer;color:var(--muted);font-size:10px;font-weight:500;transition:color 0.15s;border:none;background:none;font-family:'DM Sans',sans-serif;padding:0;}
+  .bnav-item.active{color:var(--accent);}
+  .bnav-item .bnav-icon{font-size:20px;line-height:1;}
+
+  /* ════ WEEK PANEL (mobile) ════ */
+  #weekPanel{display:none;position:fixed;inset:0;z-index:100;background:rgba(0,0,0,0.6);backdrop-filter:blur(4px);}
+  .week-panel-card{position:absolute;bottom:0;left:0;right:0;background:var(--surface);border-radius:24px 24px 0 0;padding:20px 0 calc(20px + env(safe-area-inset-bottom));max-height:75vh;display:flex;flex-direction:column;}
+  .panel-handle{width:36px;height:4px;background:var(--border);border-radius:99px;margin:0 auto 16px;}
+  .panel-title{font-family:'Bebas Neue',sans-serif;font-size:22px;letter-spacing:2px;padding:0 20px 12px;color:var(--text);}
+  .week-panel-list{flex:1;overflow-y:auto;-webkit-overflow-scrolling:touch;}
+  .week-panel-item{display:flex;align-items:center;justify-content:space-between;padding:14px 20px;cursor:pointer;font-size:15px;color:var(--muted);border-bottom:1px solid var(--border);transition:background 0.12s;}
+  .week-panel-item:active{background:var(--surface2);}
+  .week-panel-item.active{color:var(--accent);background:rgba(232,240,64,0.04);}
+  .week-panel-add{display:flex;align-items:center;gap:10px;padding:14px 20px;cursor:pointer;font-size:15px;color:var(--accent2);border:none;background:none;font-family:'DM Sans',sans-serif;width:100%;text-align:left;}
+
+  /* ════ PROFILE PANEL (mobile) ════ */
+  #profilePanel{display:none;position:fixed;inset:0;z-index:100;background:rgba(0,0,0,0.6);backdrop-filter:blur(4px);}
+  .profile-card{position:absolute;bottom:0;left:0;right:0;background:var(--surface);border-radius:24px 24px 0 0;padding:20px 20px calc(20px + env(safe-area-inset-bottom));}
+  .profile-user{display:flex;align-items:center;gap:14px;margin-bottom:24px;}
+  .profile-avatar-big{width:52px;height:52px;border-radius:50%;background:var(--accent);color:#0d0f14;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:22px;flex-shrink:0;}
+  .profile-name{font-size:18px;font-weight:600;}
+  .profile-sub{font-size:12px;color:var(--muted);margin-top:2px;}
+  .profile-actions{display:flex;flex-direction:column;gap:10px;}
+  .profile-btn{width:100%;padding:14px 16px;border-radius:12px;border:none;cursor:pointer;font-family:'DM Sans',sans-serif;font-size:15px;font-weight:500;text-align:left;transition:all 0.15s;display:flex;align-items:center;gap:12px;}
+  .profile-btn:active{transform:scale(0.98);}
+  .profile-btn-import{background:var(--surface2);color:var(--text);border:1px solid var(--border);}
+  .profile-btn-save{background:var(--accent);color:#0d0f14;}
+  .profile-btn-logout{background:rgba(239,68,68,0.08);color:var(--red);border:1px solid rgba(239,68,68,0.2);}
+
+  /* ════ PROGRAMME SELECTION SCREEN ════ */
+  #programScreen{display:none;position:fixed;inset:0;z-index:150;background:var(--bg);overflow-y:auto;}
+  .prog-screen-inner{max-width:700px;margin:0 auto;padding:24px 16px calc(var(--bottom-nav) + 24px);}
+  .prog-screen-title{font-family:'Bebas Neue',sans-serif;font-size:36px;letter-spacing:2px;margin-bottom:6px;}
+  .prog-screen-title span{color:var(--accent);}
+  .prog-screen-sub{color:var(--muted);font-size:14px;margin-bottom:28px;}
+
+  /* 3 big option cards */
+  .prog-options{display:flex;flex-direction:column;gap:14px;margin-bottom:32px;}
+  .prog-option-card{background:var(--surface);border:2px solid var(--border);border-radius:var(--radius);padding:20px;cursor:pointer;transition:all 0.2s;display:flex;align-items:center;gap:16px;}
+  .prog-option-card:active,.prog-option-card:hover{border-color:var(--accent);background:rgba(232,240,64,0.04);}
+  .prog-option-icon{font-size:32px;flex-shrink:0;}
+  .prog-option-text h3{font-size:16px;font-weight:600;margin-bottom:3px;}
+  .prog-option-text p{font-size:13px;color:var(--muted);line-height:1.4;}
+  .prog-option-arrow{margin-left:auto;color:var(--muted);font-size:20px;flex-shrink:0;}
+
+  /* Category grid */
+  .prog-categories-title{font-family:'Bebas Neue',sans-serif;font-size:24px;letter-spacing:2px;margin-bottom:14px;color:var(--text);}
+  .prog-cat-tabs{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:20px;}
+  .prog-cat-tab{padding:8px 16px;border-radius:99px;border:1px solid var(--border);background:var(--surface);color:var(--muted);cursor:pointer;font-size:13px;font-weight:500;transition:all 0.15s;font-family:'DM Sans',sans-serif;}
+  .prog-cat-tab.active{background:var(--accent);color:#0d0f14;border-color:var(--accent);}
+
+  .prog-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px;}
+  @media(max-width:480px){.prog-grid{grid-template-columns:1fr;}}
+  .prog-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);overflow:hidden;cursor:pointer;transition:all 0.2s;}
+  .prog-card:active,.prog-card:hover{border-color:var(--accent);transform:translateY(-2px);}
+  .prog-card-banner{height:80px;display:flex;align-items:center;justify-content:center;font-size:40px;position:relative;}
+  .prog-card-badge{position:absolute;top:8px;right:8px;padding:3px 8px;border-radius:99px;font-size:10px;font-weight:600;font-family:'DM Sans',sans-serif;}
+  .badge-debutant{background:rgba(64,232,192,0.2);color:var(--accent2);}
+  .badge-intermediaire{background:rgba(232,240,64,0.2);color:var(--accent);}
+  .badge-avance{background:rgba(239,68,68,0.2);color:var(--red);}
+  .prog-card-body{padding:14px;}
+  .prog-card-name{font-size:15px;font-weight:600;margin-bottom:4px;}
+  .prog-card-meta{font-size:12px;color:var(--muted);display:flex;gap:10px;flex-wrap:wrap;}
+  .prog-card-meta span{display:flex;align-items:center;gap:4px;}
+
+  /* Programme detail modal */
+  #progDetailModal{display:none;position:fixed;inset:0;z-index:160;background:rgba(0,0,0,0.7);backdrop-filter:blur(6px);align-items:flex-end;justify-content:center;}
+  .prog-detail-card{background:var(--surface);border-radius:24px 24px 0 0;width:100%;max-width:600px;max-height:85vh;display:flex;flex-direction:column;padding:0;}
+  .prog-detail-header{padding:20px 20px 16px;border-bottom:1px solid var(--border);}
+  .prog-detail-title{font-family:'Bebas Neue',sans-serif;font-size:28px;letter-spacing:2px;margin-bottom:4px;}
+  .prog-detail-meta{display:flex;gap:12px;flex-wrap:wrap;font-size:12px;color:var(--muted);}
+  .prog-detail-desc{font-size:14px;color:var(--muted);margin-top:8px;line-height:1.5;}
+  .prog-detail-weeks{flex:1;overflow-y:auto;padding:16px 20px;}
+  .prog-week-preview{padding:10px 14px;background:var(--surface2);border-radius:10px;margin-bottom:8px;font-size:13px;}
+  .prog-week-preview-name{font-weight:600;color:var(--accent);margin-bottom:4px;}
+  .prog-week-preview-days{color:var(--muted);font-size:12px;}
+  .prog-detail-footer{padding:16px 20px;border-top:1px solid var(--border);display:flex;gap:10px;}
+  .prog-detail-footer .btn{flex:1;justify-content:center;}
+
+  /* ════ WEEK VIEW ════ */
+  .week-view-wrap{padding:16px 16px calc(var(--bottom-nav) + 16px);}
+  .week-hdr{margin-bottom:16px;}
+  .week-hdr h1{font-family:'Bebas Neue',sans-serif;font-size:36px;letter-spacing:2px;line-height:1;}
+  .week-hdr h1 span{color:var(--accent);}
+  .week-hdr p{color:var(--muted);font-size:12px;margin-top:3px;}
+  .wstats{display:flex;gap:8px;margin-top:10px;flex-wrap:wrap;}
+  .stat-chip{display:flex;align-items:center;gap:5px;padding:4px 10px;background:var(--surface);border:1px solid var(--border);border-radius:99px;font-size:11px;}
+  .chip-dot{width:6px;height:6px;border-radius:50%;}
+
+  .day-block{margin-bottom:12px;background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);overflow:hidden;}
+  .day-block-header{display:flex;align-items:center;padding:12px 16px;border-bottom:1px solid var(--border);background:var(--surface2);}
+  .day-delete-btn{width:30px;height:30px;border-radius:8px;border:none;background:rgba(239,68,68,0.1);color:var(--red);cursor:pointer;font-size:16px;display:flex;align-items:center;justify-content:center;flex-shrink:0;transition:background 0.15s;}
+  .day-delete-btn:active{background:rgba(239,68,68,0.25);}
+  .day-label{font-weight:600;color:var(--accent2);font-size:13px;flex:1;}
+  .day-progress{font-size:11px;color:var(--muted);}
+  .exercise-row{display:flex;align-items:center;gap:12px;padding:14px 16px;border-bottom:1px solid rgba(255,255,255,0.04);}
+  .exercise-row:last-child{border-bottom:none;}
+  .exercise-row.v-ok{background:rgba(34,197,94,0.05);}
+  .exercise-row.v-ko{background:rgba(239,68,68,0.05);}
+  .ex-multi-dot{width:6px;height:6px;border-radius:50%;background:var(--accent);opacity:0.5;flex-shrink:0;}
+  .ex-name-text{flex:1;font-size:15px;line-height:1.4;color:var(--text);}
+  .val-btns{display:flex;gap:8px;flex-shrink:0;}
+  .val-btn{width:44px;height:44px;border-radius:11px;border:1px solid var(--border);background:var(--surface2);cursor:pointer;font-size:18px;display:flex;align-items:center;justify-content:center;transition:all 0.12s;color:var(--muted);}
+  .val-btn:active{transform:scale(0.92);}
+  .val-btn.active-ok{background:rgba(34,197,94,0.2);border-color:var(--green);color:var(--green);}
+  .val-btn.active-ko{background:rgba(239,68,68,0.2);border-color:var(--red);color:var(--red);}
+
+  .add-row-card{display:flex;align-items:center;justify-content:center;gap:8px;padding:14px;background:var(--surface);border:1px dashed var(--border);border-radius:var(--radius);cursor:pointer;color:var(--muted);font-size:14px;margin-bottom:12px;transition:all 0.15s;}
+  .add-row-card:active{background:var(--surface2);color:var(--text);}
+
+  .empty-state{display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:60vh;gap:16px;text-align:center;padding:20px;}
+  .empty-icon{font-size:52px;opacity:0.3;}
+  .empty-state h2{font-family:'Bebas Neue',sans-serif;font-size:26px;letter-spacing:2px;color:var(--muted);}
+  .empty-state p{color:var(--muted);font-size:14px;max-width:280px;line-height:1.6;}
+  .empty-btns{display:flex;gap:10px;flex-wrap:wrap;justify-content:center;margin-top:4px;}
+
+  .toast{position:fixed;bottom:calc(var(--bottom-nav) + 12px);left:16px;right:16px;background:var(--surface2);border:1px solid var(--border);border-radius:11px;padding:12px 16px;font-size:14px;z-index:9999;transform:translateY(20px);opacity:0;transition:all 0.25s;box-shadow:0 8px 24px rgba(0,0,0,0.5);text-align:center;}
+  .toast.show{transform:translateY(0);opacity:1;}
+  .toast.ok{border-color:var(--green);color:var(--green);}
+  .toast.err{border-color:var(--red);color:var(--red);}
+  .toast.info{border-color:var(--accent2);color:var(--accent2);}
+
+  #fileInput{display:none;}
+
+  @media(max-width:640px){
+    .sidebar{display:none;}
+    .bottom-nav{display:block;}
+    .week-view-wrap{padding-bottom:calc(var(--bottom-nav) + 20px);}
+    .desktop-only{display:none!important;}
+  }
+  @media(min-width:641px){
+    .bottom-nav{display:none;}
+    #weekPanel{display:none!important;}
+    #profilePanel{display:none!important;}
+    .mobile-only{display:none!important;}
+    .week-view-wrap{padding:24px 28px;}
+    .toast{left:auto;right:24px;bottom:24px;width:auto;max-width:340px;text-align:left;}
+    #programScreen .prog-screen-inner{padding:32px 28px;}
+    #progDetailModal{align-items:center;}
+    .prog-detail-card{border-radius:24px;max-height:80vh;}
+  }
+</style>
+</head>
+<body>
+
+<!-- ════ AUTH ════ -->
+<div id="authScreen">
+  <div class="auth-card">
+    <div class="auth-logo">SPORT<span>PLAN</span></div>
+    <div class="auth-tagline">Ton planning sportif, disponible partout</div>
+    <div class="auth-tabs">
+      <button class="auth-tab active" id="tabLogin" onclick="switchTab('login')">Se connecter</button>
+      <button class="auth-tab" id="tabRegister" onclick="switchTab('register')">Créer un compte</button>
+    </div>
+    <div class="auth-form">
+      <div>
+        <div class="field-label">Nom d'utilisateur</div>
+        <input class="field-input" id="authUser" type="text" placeholder="ex: jean_sport" autocomplete="username" autocapitalize="none">
+      </div>
+      <div>
+        <div class="field-label">Mot de passe</div>
+        <input class="field-input" id="authPass" type="password" placeholder="••••••••" autocomplete="current-password">
+      </div>
+      <div id="authConfirmWrap" style="display:none">
+        <div class="field-label">Confirmer le mot de passe</div>
+        <input class="field-input" id="authConfirm" type="password" placeholder="••••••••">
+      </div>
+      <div class="auth-error" id="authError"></div>
+      <button class="auth-submit" id="authBtn" onclick="handleAuth()">Se connecter</button>
+    </div>
+  </div>
+</div>
+
+<!-- ════ PROGRAMME SELECTION SCREEN ════ -->
+<div id="programScreen">
+  <div class="prog-screen-inner">
+    <div style="display:flex;align-items:center;gap:12px;margin-bottom:20px;">
+      <button onclick="closeProgramScreen()" style="background:var(--surface2);border:1px solid var(--border);border-radius:10px;width:36px;height:36px;cursor:pointer;font-size:18px;display:flex;align-items:center;justify-content:center;color:var(--text);">←</button>
+      <div>
+        <div class="prog-screen-title">Nouveau <span>Planning</span></div>
+      </div>
+    </div>
+    <div class="prog-screen-sub">Comment veux-tu créer ton planning ?</div>
+
+    <!-- 3 options -->
+    <div class="prog-options">
+      <div class="prog-option-card" onclick="showPredefined()">
+        <div class="prog-option-icon">🎯</div>
+        <div class="prog-option-text">
+          <h3>Programmes prédéfinis</h3>
+          <p>Musculation, Cardio, Calisthenics — plusieurs durées disponibles</p>
+        </div>
+        <div class="prog-option-arrow">›</div>
+      </div>
+      <div class="prog-option-card" onclick="document.getElementById('fileInput').click(); closeProgramScreen()">
+        <div class="prog-option-icon">📂</div>
+        <div class="prog-option-text">
+          <h3>Importer un fichier Excel</h3>
+          <p>Charge ton propre fichier .xlsx avec tes séances</p>
+        </div>
+        <div class="prog-option-arrow">›</div>
+      </div>
+      <div class="prog-option-card" onclick="createManual()">
+        <div class="prog-option-icon">✏️</div>
+        <div class="prog-option-text">
+          <h3>Créer manuellement</h3>
+          <p>Part d'une semaine vide et ajoute tes séances toi-même</p>
+        </div>
+        <div class="prog-option-arrow">›</div>
+      </div>
+    </div>
+
+    <!-- Predefined programs section -->
+    <div id="predefinedSection" style="display:none">
+      <div class="prog-categories-title">Choisir un programme</div>
+      <div style="display:flex;gap:8px;margin-bottom:14px;flex-wrap:wrap;">
+        <button class="prog-cat-tab active" id="genderAll" onclick="filterGender('all',this)">👥 Tous</button>
+        <button class="prog-cat-tab" id="genderH" onclick="filterGender('homme',this)">♂ Homme</button>
+        <button class="prog-cat-tab" id="genderF" onclick="filterGender('femme',this)">♀ Femme</button>
+      </div>
+      <div class="prog-cat-tabs" style="margin-bottom:20px;">
+        <button class="prog-cat-tab active" id="catAll" onclick="filterCat('all',this)">Tous</button>
+        <button class="prog-cat-tab" onclick="filterCat('musculation',this)">💪 Musculation</button>
+        <button class="prog-cat-tab" onclick="filterCat('perte',this)">🔥 Perte de poids</button>
+        <button class="prog-cat-tab" onclick="filterCat('cardio',this)">🏃 Cardio</button>
+        <button class="prog-cat-tab" onclick="filterCat('calisthenics',this)">🤸 Calisthenics</button>
+      </div>
+      <div class="prog-grid" id="progGrid"></div>
+    </div>
+  </div>
+</div>
+
+<!-- ════ PROGRAMME DETAIL MODAL ════ -->
+<div id="progDetailModal" onclick="closeDetailModal(event)">
+  <div class="prog-detail-card" id="progDetailCard">
+    <div class="prog-detail-header">
+      <div class="prog-detail-title" id="modalTitle">—</div>
+      <div class="prog-detail-meta" id="modalMeta"></div>
+      <div class="prog-detail-desc" id="modalDesc"></div>
+    </div>
+    <div class="prog-detail-weeks" id="modalWeeks"></div>
+    <div class="prog-detail-footer">
+      <button class="btn btn-ghost" onclick="closeDetailModal()">Annuler</button>
+      <button class="btn btn-primary" id="modalLoadBtn" onclick="loadSelectedProgram()">🚀 Charger ce programme</button>
+    </div>
+  </div>
+</div>
+
+<!-- ════ APP ════ -->
+<div id="app" style="display:flex;flex-direction:column;height:100%">
+  <div class="app-header">
+    <div class="logo">SPORT<span>PLAN</span></div>
+    <div class="header-right">
+      <div class="sync-dot" id="syncDot"></div>
+      <div class="user-badge desktop-only">
+        <div class="user-avatar" id="userAvatarD">?</div>
+        <span id="userLabelD">—</span>
+      </div>
+      <button class="icon-btn desktop-only" onclick="openProgramScreen()" title="Nouveau planning">➕</button>
+      <button class="btn btn-primary btn-sm desktop-only" onclick="syncSave()">☁️ Sauvegarder</button>
+      <button class="btn btn-danger btn-sm desktop-only" onclick="logout()">Déconnexion</button>
+      <button class="icon-btn mobile-only" onclick="openProfile()">👤</button>
+    </div>
+  </div>
+
+  <div class="progbar-wrap">
+    <span class="progbar-label">Progression</span>
+    <div class="progbar-track"><div class="progbar-fill" id="gFill" style="width:0%"></div></div>
+    <span class="progbar-pct" id="gPct">0%</span>
+  </div>
+
+  <div class="app-body">
+    <div class="sidebar">
+      <div class="sb-title">Semaines</div>
+      <div class="sb-list" id="sbList"></div>
+      <button class="sb-add-btn" onclick="openProgramScreen()">+ Ajouter un planning</button>
+    </div>
+    <div class="content" id="content">
+      <div class="week-view-wrap">
+        <div class="empty-state" id="emptyState">
+          <div class="empty-icon">🏋️</div>
+          <h2>Aucun planning</h2>
+          <p>Crée ou importe un programme pour commencer.</p>
+          <div class="empty-btns">
+            <button class="btn btn-primary" onclick="openProgramScreen()">🎯 Choisir un programme</button>
+          </div>
+        </div>
+        <div id="weekView" style="display:none"></div>
+      </div>
+    </div>
+  </div>
+
+  <nav class="bottom-nav">
+    <div class="bottom-nav-inner">
+      <button class="bnav-item active" id="bnavHome" onclick="bnavGo('home')">
+        <span class="bnav-icon">🏠</span>Planning
+      </button>
+      <button class="bnav-item" onclick="openWeekPanel()">
+        <span class="bnav-icon">📅</span>Semaines
+      </button>
+      <button class="bnav-item" onclick="openProgramScreen()">
+        <span class="bnav-icon">➕</span>Nouveau
+      </button>
+    </div>
+  </nav>
+</div>
+
+<!-- ════ WEEK PANEL (mobile) ════ -->
+<div id="weekPanel" onclick="closeWeekPanel(event)">
+  <div class="week-panel-card" id="weekPanelCard">
+    <div class="panel-handle"></div>
+    <div class="panel-title">Semaines</div>
+    <div class="week-panel-list" id="weekPanelList"></div>
+    <button class="week-panel-add" onclick="openProgramScreen();closeWeekPanel()">➕ Nouveau planning</button>
+  </div>
+</div>
+
+<!-- ════ PROFILE PANEL (mobile) ════ -->
+<div id="profilePanel" onclick="closeProfile(event)">
+  <div class="profile-card" id="profileCard">
+    <div class="panel-handle" style="margin:0 auto 20px"></div>
+    <div class="profile-user">
+      <div class="profile-avatar-big" id="profileAvatar">?</div>
+      <div>
+        <div class="profile-name" id="profileName">—</div>
+        <div class="profile-sub">Compte SportPlan</div>
+      </div>
+    </div>
+    <div class="profile-actions">
+      <button class="profile-btn profile-btn-import" onclick="openProgramScreen();closeProfile()">🎯 Nouveau planning / Importer</button>
+      <button class="profile-btn profile-btn-save" onclick="syncSave();closeProfile()">☁️ Sauvegarder maintenant</button>
+      <button class="profile-btn profile-btn-logout" onclick="logout()">🚪 Se déconnecter</button>
+    </div>
+  </div>
+</div>
+
+<input type="file" id="fileInput" accept=".xlsx,.xls" onchange="onImport(event)">
+<div class="toast" id="toast"></div>
+
+<script>
+// ════════════════════════════════════════
+// SUPABASE CONFIG
+// ════════════════════════════════════════
+const SUPABASE_URL = 'https://nntjzvtjogttsyblncsu.supabase.co';
+const SUPABASE_KEY = 'sb_publishable_sAU1qKtqj0iv4BZMsoUHlw_xxYB57Xp';
+
+// ════════════════════════════════════════
+// PROGRAMMES PRÉDÉFINIS
+// ════════════════════════════════════════
+const PROGRAMS = [
+  {
+    id:'musc-masse-4',
+    cat:'musculation',
+    name:'Prise de masse',
+    icon:'💪',
+    level:'debutant',
+    levelLabel:'Débutant',
+    weeks:4,
+    days:3,
+    desc:'Programme full-body 3 jours par semaine, idéal pour débuter la musculation et prendre de la masse musculaire.',
+    template: (w) => [
+      { day:'Lundi',    exercises:[{name:`S${w} — Squat 3x8`,valid:''},{name:`S${w} — Développé couché 3x8`,valid:''},{name:`S${w} — Tractions 3x6`,valid:''}]},
+      { day:'Mercredi', exercises:[{name:`S${w} — Soulevé de terre 3x6`,valid:''},{name:`S${w} — Rowing barre 3x8`,valid:''},{name:`S${w} — Développé militaire 3x8`,valid:''}]},
+      { day:'Vendredi',  exercises:[{name:`S${w} — Squat avant 3x8`,valid:''},{name:`S${w} — Dips 3x8`,valid:''},{name:`S${w} — Curl biceps 3x10`,valid:''}]},
+    ]
+  },
+  {
+    id:'musc-masse-8',
+    cat:'musculation',
+    name:'Prise de masse — 8 sem.',
+    icon:'🏋️',
+    level:'intermediaire',
+    levelLabel:'Intermédiaire',
+    weeks:8,
+    days:4,
+    desc:'Programme Push/Pull/Legs sur 8 semaines avec progression de charge semaine par semaine.',
+    template: (w) => {
+      const sets = w <= 4 ? '3' : '4';
+      return [
+        { day:'Lundi (Push)',  exercises:[{name:`S${w} — Développé couché ${sets}x8`,valid:''},{name:`S${w} — Développé incliné ${sets}x10`,valid:''},{name:`S${w} — Développé militaire ${sets}x8`,valid:''}]},
+        { day:'Mardi (Pull)',  exercises:[{name:`S${w} — Tractions ${sets}x6`,valid:''},{name:`S${w} — Rowing haltère ${sets}x10`,valid:''},{name:`S${w} — Curl biceps ${sets}x12`,valid:''}]},
+        { day:'Jeudi (Legs)',  exercises:[{name:`S${w} — Squat ${sets}x8`,valid:''},{name:`S${w} — Presse à cuisse ${sets}x12`,valid:''},{name:`S${w} — Fentes ${sets}x10`,valid:''}]},
+        { day:'Samedi (Full)', exercises:[{name:`S${w} — Soulevé de terre ${sets}x5`,valid:''},{name:`S${w} — Dips lestés ${sets}x8`,valid:''},{name:`S${w} — Gainage 3x60s`,valid:''}]},
+      ];
+    }
+  },
+  {
+    id:'musc-seche-6',
+    cat:'musculation',
+    name:'Sèche — 6 semaines',
+    icon:'🔥',
+    level:'intermediaire',
+    levelLabel:'Intermédiaire',
+    weeks:6,
+    days:5,
+    desc:'Programme haute intensité 5 jours pour perdre du gras tout en conservant la masse musculaire.',
+    template: (w) => [
+      { day:'Lundi',    exercises:[{name:`S${w} — Circuit poitrine/triceps 4x12`,valid:''},{name:`S${w} — HIIT 15min`,valid:''}]},
+      { day:'Mardi',    exercises:[{name:`S${w} — Circuit dos/biceps 4x12`,valid:''},{name:`S${w} — Cardio modéré 20min`,valid:''}]},
+      { day:'Mercredi', exercises:[{name:`S${w} — Jambes 4x15`,valid:''},{name:`S${w} — Gainage 4x45s`,valid:''}]},
+      { day:'Jeudi',    exercises:[{name:`S${w} — Épaules/abdos 4x12`,valid:''},{name:`S${w} — HIIT 15min`,valid:''}]},
+      { day:'Vendredi', exercises:[{name:`S${w} — Full body léger 3x15`,valid:''},{name:`S${w} — Stretching 20min`,valid:''}]},
+    ]
+  },
+  {
+    id:'cardio-5k-8',
+    cat:'cardio',
+    name:'Plan 5km — 8 semaines',
+    icon:'🏃',
+    level:'debutant',
+    levelLabel:'Débutant',
+    weeks:8,
+    days:3,
+    desc:'Programme progressif pour courir 5km sans s\'arrêter. Parfait pour les débutants en running.',
+    template: (w) => {
+      const distances = [['2km','1.5km','2km'],['2.5km','2km','2.5km'],['3km','2.5km','3km'],['3.5km','3km','3.5km'],['4km','3km','4km'],['4.5km','3.5km','4.5km'],['5km','4km','5km'],['5km','3km','5km Course !']];
+      const [d1,d2,d3] = distances[Math.min(w-1,7)];
+      return [
+        { day:'Lundi',    exercises:[{name:`S${w} — Course ${d1} (allure confortable)`,valid:''}]},
+        { day:'Mercredi', exercises:[{name:`S${w} — Fractionné ${d2} (30s vite / 90s lent)`,valid:''}]},
+        { day:'Vendredi', exercises:[{name:`S${w} — Course longue ${d3}`,valid:''}]},
+      ];
+    }
+  },
+  {
+    id:'cardio-endurance-12',
+    cat:'cardio',
+    name:'Endurance générale',
+    icon:'❤️',
+    level:'intermediaire',
+    levelLabel:'Intermédiaire',
+    weeks:12,
+    days:4,
+    desc:'Programme cardio varié sur 12 semaines : course, vélo, natation, HIIT pour une condition physique complète.',
+    template: (w) => [
+      { day:'Lundi',    exercises:[{name:`S${w} — Course ${20+w*2}min allure modérée`,valid:''}]},
+      { day:'Mercredi', exercises:[{name:`S${w} — HIIT 20min (10x30s effort / 90s récup)`,valid:''}]},
+      { day:'Vendredi', exercises:[{name:`S${w} — Vélo ou natation ${30+w*2}min`,valid:''}]},
+      { day:'Dimanche', exercises:[{name:`S${w} — Sortie longue ${40+w*3}min allure lente`,valid:''}]},
+    ]
+  },
+  {
+    id:'cali-debutant-4',
+    cat:'calisthenics',
+    name:'Calisthenics Débutant',
+    icon:'🤸',
+    level:'debutant',
+    levelLabel:'Débutant',
+    weeks:4,
+    days:3,
+    desc:'Initiation au poids du corps : pompes, tractions, squats et gainage pour construire une base solide.',
+    template: (w) => [
+      { day:'Lundi',    exercises:[{name:`S${w} — Pompes ${w*5+10} reps`,valid:''},{name:`S${w} — Squats ${w*8+20} reps`,valid:''},{name:`S${w} — Gainage 3x${w*5+20}s`,valid:''}]},
+      { day:'Mercredi', exercises:[{name:`S${w} — Tractions assistées 3x${w+3}`,valid:''},{name:`S${w} — Dips chaise 3x${w*2+8}`,valid:''},{name:`S${w} — Fentes 3x12`,valid:''}]},
+      { day:'Vendredi', exercises:[{name:`S${w} — Pompes inclinées 3x12`,valid:''},{name:`S${w} — Relevé de jambes 3x${w*3+8}`,valid:''},{name:`S${w} — Burpees ${w*2+5} reps`,valid:''}]},
+    ]
+  },
+  {
+    id:'cali-avance-8',
+    cat:'calisthenics',
+    name:'Calisthenics Avancé',
+    icon:'💎',
+    level:'avance',
+    levelLabel:'Avancé',
+    weeks:8,
+    days:4,
+    desc:'Progressions vers le muscle-up, le handstand et le front lever. Pour ceux qui maîtrisent les bases.',
+    template: (w) => [
+      { day:'Lundi (Poussée)',  exercises:[{name:`S${w} — Pompes archer 4x8`,valid:''},{name:`S${w} — Dips 4x10`,valid:''},{name:`S${w} — Pike push-up 3x10`,valid:''}]},
+      { day:'Mardi (Tirage)',   exercises:[{name:`S${w} — Tractions lestées 4x6`,valid:''},{name:`S${w} — Australian pull-up 3x12`,valid:''},{name:`S${w} — Rowing suspension 3x10`,valid:''}]},
+      { day:'Jeudi (Skills)',   exercises:[{name:`S${w} — Travail muscle-up 20min`,valid:''},{name:`S${w} — Travail handstand 15min`,valid:''},{name:`S${w} — L-sit 5x${w*3+5}s`,valid:''}]},
+      { day:'Samedi (Lower)',   exercises:[{name:`S${w} — Pistol squat 4x5 chaque jambe`,valid:''},{name:`S${w} — Shrimp squat 3x6`,valid:''},{name:`S${w} — Sauts en hauteur 4x6`,valid:''}]},
+    ]
+  },
+  {
+    id:'cali-force-6',
+    cat:'calisthenics',
+    name:'Force au poids du corps',
+    icon:'⚡',
+    level:'intermediaire',
+    levelLabel:'Intermédiaire',
+    weeks:6,
+    days:3,
+    desc:'Focus sur la force pure : séries courtes, temps de repos longs, progressions lentes mais solides.',
+    template: (w) => [
+      { day:'Lundi',    exercises:[{name:`S${w} — One arm push-up progressif 5x3`,valid:''},{name:`S${w} — Tractions 5x5`,valid:''},{name:`S${w} — Dips lestés 5x5`,valid:''}]},
+      { day:'Mercredi', exercises:[{name:`S${w} — Pseudo planche push-up 4x6`,valid:''},{name:`S${w} — Front lever progressif 5x${w*2+5}s`,valid:''},{name:`S${w} — Dragon flag 3x5`,valid:''}]},
+      { day:'Vendredi', exercises:[{name:`S${w} — Handstand push-up 4x5`,valid:''},{name:`S${w} — Back lever 4x${w*2+5}s`,valid:''},{name:`S${w} — Planche lean 5x${w*3+5}s`,valid:''}]},
+    ]
+  },
+  ,
+  // ─── PERTE DE POIDS AVEC PRISE DE MUSCLE ───────────────────────
+  // ── PERTE DE POIDS — AVEC PRISE DE MUSCLE — HOMME ──
+  {
+    id:'perte-muscle-homme-8',
+    cat:'perte',
+    genre:'homme',
+    name:'Perte de poids + Muscle ♂',
+    icon:'🔥',
+    level:'intermediaire',
+    levelLabel:'Intermédiaire',
+    weeks:8,
+    days:4,
+    desc:'Programme homme 8 semaines : musculation lourde + cardio HIIT pour brûler les graisses tout en développant la masse musculaire. Déficit calorique modéré recommandé.',
+    template:(w)=>{
+      const sets=w<=4?'3':'4'; const reps=w<=4?'10':'12';
+      return [
+        {day:'Lundi (Haut du corps)',  exercises:[{name:`S${w} — Développé couché ${sets}x${reps}`,valid:''},{name:`S${w} — Rowing barre ${sets}x${reps}`,valid:''},{name:`S${w} — Développé militaire ${sets}x${reps}`,valid:''},{name:`S${w} — HIIT 15min`,valid:''}]},
+        {day:'Mercredi (Bas du corps)', exercises:[{name:`S${w} — Squat ${sets}x${reps}`,valid:''},{name:`S${w} — Soulevé de terre ${sets}x8`,valid:''},{name:`S${w} — Fentes marchées 3x12`,valid:''},{name:`S${w} — Gainage 3x45s`,valid:''}]},
+        {day:'Vendredi (Full body)',    exercises:[{name:`S${w} — Circuit : Burpees + Tractions + Dips 4 tours`,valid:''},{name:`S${w} — Squat sauté 4x15`,valid:''},{name:`S${w} — Cardio modéré 20min`,valid:''}]},
+        {day:'Samedi (Cardio+Abdos)',  exercises:[{name:`S${w} — Course ${20+w*2}min allure modérée`,valid:''},{name:`S${w} — Relevés de jambes 4x15`,valid:''},{name:`S${w} — Russian twist 4x20`,valid:''}]},
+      ];
+    }
+  },
+  {
+    id:'perte-muscle-homme-12',
+    cat:'perte',
+    genre:'homme',
+    name:'Transformation Homme 12 sem.',
+    icon:'⚡',
+    level:'avance',
+    levelLabel:'Avancé',
+    weeks:12,
+    days:5,
+    desc:'Programme intensif 12 semaines pour une transformation corporelle complète : force, cardio, HIIT et mobilité. Résultats visibles garantis avec une bonne alimentation.',
+    template:(w)=>{
+      const phase = w<=4?'Phase 1 — Force':w<=8?'Phase 2 — Hypertrophie':'Phase 3 — Affinage';
+      const sets = w<=4?'5':w<=8?'4':'3'; const reps = w<=4?'5':w<=8?'10':'15';
+      return [
+        {day:`Lundi (${phase} — Push)`,  exercises:[{name:`S${w} — Développé couché ${sets}x${reps}`,valid:''},{name:`S${w} — Dips lestés ${sets}x${reps}`,valid:''},{name:`S${w} — Développé militaire ${sets}x${reps}`,valid:''}]},
+        {day:`Mardi (${phase} — Pull)`,  exercises:[{name:`S${w} — Tractions lestées ${sets}x${reps}`,valid:''},{name:`S${w} — Rowing haltère ${sets}x${reps}`,valid:''},{name:`S${w} — Curl biceps ${sets}x${reps}`,valid:''}]},
+        {day:`Jeudi (${phase} — Legs)`,  exercises:[{name:`S${w} — Squat ${sets}x${reps}`,valid:''},{name:`S${w} — Soulevé de terre ${sets}x${reps}`,valid:''},{name:`S${w} — Presse à cuisse ${sets}x${reps}`,valid:''}]},
+        {day:'Vendredi (HIIT)',           exercises:[{name:`S${w} — HIIT Tabata 20min`,valid:''},{name:`S${w} — Gainage complexe 4x45s`,valid:''}]},
+        {day:'Samedi (Cardio long)',      exercises:[{name:`S${w} — Course ou vélo ${40+w*3}min allure lente`,valid:''}]},
+      ];
+    }
+  },
+  // ── PERTE DE POIDS — SANS PRISE DE MUSCLE — HOMME ──
+  {
+    id:'perte-cardio-homme-8',
+    cat:'perte',
+    genre:'homme',
+    name:'Perte de poids Pure ♂',
+    icon:'🏃',
+    level:'debutant',
+    levelLabel:'Débutant',
+    weeks:8,
+    days:4,
+    desc:'Programme homme sans musculation lourde : cardio varié, HIIT et exercices fonctionnels pour brûler un maximum de calories. Idéal si tu veux mincir sans prendre de volume.',
+    template:(w)=>[
+      {day:'Lundi (HIIT)',     exercises:[{name:`S${w} — Échauffement 5min`,valid:''},{name:`S${w} — HIIT 25min (30s effort / 30s repos)`,valid:''},{name:`S${w} — Étirements 10min`,valid:''}]},
+      {day:'Mercredi (Cardio)',exercises:[{name:`S${w} — Course ${25+w*3}min allure modérée`,valid:''},{name:`S${w} — Abdos fonctionnels 3x15`,valid:''}]},
+      {day:'Vendredi (Circuit)',exercises:[{name:`S${w} — Circuit 5 exercices x3 tours : Burpees, Mountain climbers, Jumping jacks, Squat sauté, Gainage`,valid:''}]},
+      {day:'Dimanche (Actif)', exercises:[{name:`S${w} — Marche rapide ou vélo léger ${45+w*2}min`,valid:''}]},
+    ]
+  },
+  // ── PERTE DE POIDS — AVEC PRISE DE MUSCLE — FEMME ──
+  {
+    id:'perte-muscle-femme-8',
+    cat:'perte',
+    genre:'femme',
+    name:'Tonification & Perte ♀',
+    icon:'✨',
+    level:'debutant',
+    levelLabel:'Débutant',
+    weeks:8,
+    days:4,
+    desc:'Programme femme 8 semaines : musculation légère ciblant fessiers, cuisses et abdos avec cardio doux pour tonifier le corps et perdre du poids progressivement sans prendre de volume.',
+    template:(w)=>{
+      const sets=w<=4?'3':'4';
+      return [
+        {day:'Lundi (Fessiers & Cuisses)',  exercises:[{name:`S${w} — Hip thrust ${sets}x15`,valid:''},{name:`S${w} — Squats sumo ${sets}x15`,valid:''},{name:`S${w} — Fentes arrière ${sets}x12 chaque jambe`,valid:''},{name:`S${w} — Kickbacks élastique ${sets}x15`,valid:''}]},
+        {day:'Mercredi (Abdos & Cardio)',   exercises:[{name:`S${w} — Gainage 3x40s`,valid:''},{name:`S${w} — Crunchs 3x20`,valid:''},{name:`S${w} — Relevés de bassin 3x20`,valid:''},{name:`S${w} — Cardio doux 20min (vélo ou marche rapide)`,valid:''}]},
+        {day:'Vendredi (Haut + Fessiers)', exercises:[{name:`S${w} — Pompes genoux ${sets}x12`,valid:''},{name:`S${w} — Rowing élastique ${sets}x15`,valid:''},{name:`S${w} — Hip thrust unilatéral ${sets}x12`,valid:''},{name:`S${w} — Pont fessier 3x20`,valid:''}]},
+        {day:'Dimanche (Circuit brûleur)', exercises:[{name:`S${w} — Circuit fessiers/cardio : 4 tours`,valid:''},{name:`S${w} — Jumping jacks 1min + Squat sauté 1min + Mountain climbers 1min`,valid:''}]},
+      ];
+    }
+  },
+  {
+    id:'perte-muscle-femme-12',
+    cat:'perte',
+    genre:'femme',
+    name:'Transformation Femme 12 sem.',
+    icon:'💫',
+    level:'intermediaire',
+    levelLabel:'Intermédiaire',
+    weeks:12,
+    days:5,
+    desc:'Programme femme 12 semaines progressif pour sculpter le corps : renforcement fessiers/cuisses/abdos, cardio HIIT et mobilité. Résultats durables et corps tonifié.',
+    template:(w)=>{
+      const phase=w<=4?'Fondation':w<=8?'Renforcement':'Sculpture';
+      const sets=w<=4?'3':w<=8?'4':'4'; const reps=w<=4?'12':w<=8?'15':'15';
+      return [
+        {day:`Lundi (${phase} — Fessiers)`,  exercises:[{name:`S${w} — Hip thrust ${sets}x${reps}`,valid:''},{name:`S${w} — Squat gobelet ${sets}x${reps}`,valid:''},{name:`S${w} — Abduction hanche ${sets}x${reps}`,valid:''}]},
+        {day:`Mardi (${phase} — Cardio)`,    exercises:[{name:`S${w} — HIIT doux 20min`,valid:''},{name:`S${w} — Corde à sauter 3x2min`,valid:''}]},
+        {day:`Jeudi (${phase} — Corps entier)`,exercises:[{name:`S${w} — Fentes bulgares ${sets}x${reps}`,valid:''},{name:`S${w} — Pompes ${sets}x${reps}`,valid:''},{name:`S${w} — Gainage latéral ${sets}x30s`,valid:''}]},
+        {day:'Vendredi (Abdos & Mobilité)', exercises:[{name:`S${w} — Gainage complexe 4x40s`,valid:''},{name:`S${w} — Yoga/Stretching 20min`,valid:''}]},
+        {day:'Samedi (Cardio doux)',         exercises:[{name:`S${w} — Marche rapide, vélo ou natation ${40+w*2}min`,valid:''}]},
+      ];
+    }
+  },
+  // ── PERTE DE POIDS — SANS PRISE DE MUSCLE — FEMME ──
+  {
+    id:'perte-cardio-femme-8',
+    cat:'perte',
+    genre:'femme',
+    name:'Minceur douce ♀',
+    icon:'🌸',
+    level:'debutant',
+    levelLabel:'Débutant',
+    weeks:8,
+    days:3,
+    desc:'Programme femme tout en douceur : cardio basse intensité, yoga dynamique et pilates pour affiner la silhouette sans musculation ni impact fort. Idéal pour débuter ou reprendre.',
+    template:(w)=>[
+      {day:'Lundi (Cardio doux)',   exercises:[{name:`S${w} — Marche rapide ou vélo ${30+w*3}min`,valid:''},{name:`S${w} — Étirements ciblés 10min`,valid:''}]},
+      {day:'Mercredi (Pilates)',    exercises:[{name:`S${w} — Pilates 35min (abdos profonds, gainage léger)`,valid:''},{name:`S${w} — Respiration et relaxation 5min`,valid:''}]},
+      {day:'Vendredi (Yoga actif)', exercises:[{name:`S${w} — Yoga dynamique ${35+w*2}min`,valid:''},{name:`S${w} — Cardio léger 15min`,valid:''}]},
+    ]
+  },
+  {
+    id:'perte-cardio-femme-12',
+    cat:'perte',
+    genre:'femme',
+    name:'Minceur Progressive Femme',
+    icon:'🌺',
+    level:'intermediaire',
+    levelLabel:'Intermédiaire',
+    weeks:12,
+    days:4,
+    desc:'Programme femme 12 semaines pour une perte de poids régulière et durable : cardio progressif, HIIT léger et mobilité. Sans salle de sport nécessaire.',
+    template:(w)=>{
+      const intensity=w<=4?'faible':w<=8?'modérée':'élevée';
+      return [
+        {day:'Lundi (Marche/Course)',  exercises:[{name:`S${w} — Course ou marche rapide ${20+w*3}min (intensité ${intensity})`,valid:''}]},
+        {day:'Mercredi (Circuit)',     exercises:[{name:`S${w} — Circuit cardio 30min : jumping jacks, mountain climbers, squat sauté, danse cardio`,valid:''},{name:`S${w} — Gainage léger 3x30s`,valid:''}]},
+        {day:'Vendredi (HIIT léger)',  exercises:[{name:`S${w} — HIIT débutant 20min (20s effort / 40s repos)`,valid:''},{name:`S${w} — Stretching 10min`,valid:''}]},
+        {day:'Dimanche (Récup active)',exercises:[{name:`S${w} — Yoga ou pilates 30min`,valid:''},{name:`S${w} — Marche tranquille 30min`,valid:''}]},
+      ];
+    }
+  },
+];
+
+// ════════════════════════════════════════
+// STATE
+// ════════════════════════════════════════
+let weeks = [];
+let cur = 0;
+let currentUser = null;
+let authMode = 'login';
+let selectedProgram = null;
+let currentCat = 'all';
+let currentGender = 'all';
+
+// ════════════════════════════════════════
+// INIT
+// ════════════════════════════════════════
+window.onload = () => {
+  const savedUser = sessionStorage.getItem('sp_user');
+  if (savedUser) {
+    currentUser = savedUser;
+    loadPlanning().then(() => showApp()).catch(() => showScreen('auth'));
+  } else {
+    showScreen('auth');
+  }
+};
+
+function showScreen(name) {
+  document.getElementById('authScreen').style.display = name === 'auth' ? 'flex' : 'none';
+  document.getElementById('app').style.display        = name === 'app'  ? 'flex' : 'none';
+}
+
+// ════════════════════════════════════════
+// SUPABASE
+// ════════════════════════════════════════
+function sbFetch(method, path, body) {
+  return fetch(SUPABASE_URL + path, {
+    method,
+    headers:{'Content-Type':'application/json','apikey':SUPABASE_KEY,'Authorization':'Bearer '+SUPABASE_KEY,'Prefer':method==='POST'?'return=representation':''},
+    body:body?JSON.stringify(body):undefined
+  });
+}
+async function sbGet(path){const r=await sbFetch('GET',path);if(!r.ok){const e=await r.json();throw new Error(e.message||e.hint);}return r.json();}
+async function sbPost(path,body){const r=await sbFetch('POST',path,body);if(!r.ok){const e=await r.json();throw new Error(e.message||e.hint);}return r.json();}
+async function sbPatch(path,body){const r=await sbFetch('PATCH',path,body);if(!r.ok){const e=await r.json();throw new Error(e.message||e.hint);}return r.status===204?{}:r.json();}
+async function hashPass(p){const buf=await crypto.subtle.digest('SHA-256',new TextEncoder().encode('sp_salt_'+p));return Array.from(new Uint8Array(buf)).map(b=>b.toString(16).padStart(2,'0')).join('');}
+
+// ════════════════════════════════════════
+// AUTH
+// ════════════════════════════════════════
+function switchTab(mode) {
+  authMode = mode;
+  document.getElementById('tabLogin').classList.toggle('active', mode === 'login');
+  document.getElementById('tabRegister').classList.toggle('active', mode === 'register');
+  document.getElementById('authConfirmWrap').style.display = mode === 'register' ? 'block' : 'none';
+  document.getElementById('authBtn').textContent = mode === 'login' ? 'Se connecter' : 'Créer mon compte';
+  document.getElementById('authError').textContent = '';
+}
+
+async function handleAuth() {
+  const username = document.getElementById('authUser').value.trim().toLowerCase();
+  const password = document.getElementById('authPass').value;
+  const confirm  = document.getElementById('authConfirm').value;
+  const errEl = document.getElementById('authError');
+  const btn   = document.getElementById('authBtn');
+  errEl.textContent = '';
+  if (!username||!password){errEl.textContent='Remplis tous les champs.';return;}
+  if (username.length<3){errEl.textContent='Nom trop court (min 3 caractères).';return;}
+  if (password.length<4){errEl.textContent='Mot de passe trop court (min 4 caractères).';return;}
+  if (authMode==='register'&&password!==confirm){errEl.textContent='Les mots de passe ne correspondent pas.';return;}
+  btn.disabled=true; btn.textContent='⏳ Chargement…';
+  try {
+    const hashed = await hashPass(password);
+    if (authMode==='register') {
+      const existing = await sbGet(`/rest/v1/users?username=eq.${encodeURIComponent(username)}&select=username`);
+      if (existing.length>0) throw new Error('Ce nom d\'utilisateur est déjà pris.');
+      await sbPost('/rest/v1/users',{username,password_hash:hashed,planning:[]});
+      currentUser=username; weeks=[];
+    } else {
+      const rows = await sbGet(`/rest/v1/users?username=eq.${encodeURIComponent(username)}&select=username,password_hash,planning`);
+      if (rows.length===0) throw new Error('Utilisateur introuvable.');
+      if (rows[0].password_hash!==hashed) throw new Error('Mot de passe incorrect.');
+      currentUser=username; weeks=rows[0].planning||[];
+    }
+    sessionStorage.setItem('sp_user', currentUser);
+    showApp();
+  } catch(e) {
+    errEl.textContent = e.message||'Erreur de connexion.';
+    btn.disabled=false;
+    btn.textContent = authMode==='login'?'Se connecter':'Créer mon compte';
+  }
+}
+
+document.addEventListener('keydown', e => {
+  if (e.key==='Enter'&&document.getElementById('authScreen').style.display!=='none') handleAuth();
+});
+
+// ════════════════════════════════════════
+// LOAD / SAVE
+// ════════════════════════════════════════
+async function loadPlanning() {
+  const rows = await sbGet(`/rest/v1/users?username=eq.${encodeURIComponent(currentUser)}&select=planning`);
+  if (rows.length===0) throw new Error('Utilisateur introuvable.');
+  weeks = rows[0].planning||[];
+}
+
+async function syncSave() {
+  try {
+    setSyncState('syncing');
+    await sbPatch(`/rest/v1/users?username=eq.${encodeURIComponent(currentUser)}`,{planning:weeks});
+    setSyncState('ok'); showToast('Sauvegardé ☁️','ok');
+  } catch(e) { setSyncState('error'); showToast('Erreur de sauvegarde','err'); }
+}
+
+let autoSaveTimer;
+function scheduleAutoSave() {
+  clearTimeout(autoSaveTimer);
+  setSyncState('syncing');
+  autoSaveTimer = setTimeout(async()=>{
+    try{await sbPatch(`/rest/v1/users?username=eq.${encodeURIComponent(currentUser)}`,{planning:weeks});setSyncState('ok');}
+    catch(e){setSyncState('error');}
+  },2000);
+}
+
+function setSyncState(s) {
+  const d=document.getElementById('syncDot'); if(!d)return;
+  d.className='sync-dot'+(s==='syncing'?' syncing':s==='error'?' error':'');
+}
+
+// ════════════════════════════════════════
+// SHOW APP
+// ════════════════════════════════════════
+function showApp() {
+  showScreen('app');
+  const ini = currentUser.charAt(0).toUpperCase();
+  document.getElementById('userAvatarD').textContent = ini;
+  document.getElementById('userLabelD').textContent  = currentUser;
+  document.getElementById('profileAvatar').textContent = ini;
+  document.getElementById('profileName').textContent   = currentUser;
+  setSyncState('ok');
+  renderSidebar();
+  if (weeks.length) showWeek(0);
+}
+
+function logout() {
+  currentUser=null; weeks=[];
+  sessionStorage.removeItem('sp_user');
+  closeProfile();
+  document.getElementById('weekView').style.display='none';
+  document.getElementById('emptyState').style.display='flex';
+  document.getElementById('sbList').innerHTML='';
+  showScreen('auth');
+}
+
+// ════════════════════════════════════════
+// PROGRAMME SELECTION
+// ════════════════════════════════════════
+function openProgramScreen() {
+  document.getElementById('programScreen').style.display = 'block';
+  document.getElementById('predefinedSection').style.display = 'none';
+}
+
+function closeProgramScreen() {
+  document.getElementById('programScreen').style.display = 'none';
+}
+
+function showPredefined() {
+  currentCat = 'all';
+  currentGender = 'all';
+  document.getElementById('predefinedSection').style.display = 'block';
+  document.getElementById('predefinedSection').scrollIntoView({behavior:'smooth'});
+  renderProgGrid();
+}
+
+function filterGender(gender, btn) {
+  currentGender = gender;
+  document.querySelectorAll('#genderAll, #genderH, #genderF').forEach(t => t.classList.remove('active'));
+  btn.classList.add('active');
+  renderProgGrid();
+}
+
+function filterCat(cat, btn) {
+  currentCat = cat;
+  document.querySelectorAll('.prog-cat-tabs .prog-cat-tab').forEach(t => t.classList.remove('active'));
+  btn.classList.add('active');
+  renderProgGrid();
+}
+
+function renderProgGrid() {
+  const grid = document.getElementById('progGrid');
+  let filtered = PROGRAMS;
+  if (currentCat !== 'all') filtered = filtered.filter(p => p.cat === currentCat);
+  if (currentGender !== 'all') filtered = filtered.filter(p => !p.genre || p.genre === currentGender || p.genre === 'mixte');
+  grid.innerHTML = '';
+  if (filtered.length === 0) {
+    grid.innerHTML = '<div style="color:var(--muted);font-size:14px;padding:20px;text-align:center;grid-column:1/-1">Aucun programme pour cette sélection.</div>';
+    return;
+  }
+  filtered.forEach(prog => {
+    const card = document.createElement('div');
+    card.className = 'prog-card';
+    card.onclick = () => openDetailModal(prog);
+    const genderTag = prog.genre === 'homme' ? '<span style="font-size:11px;color:var(--accent2)">♂</span>' : prog.genre === 'femme' ? '<span style="font-size:11px;color:#f472b6">♀</span>' : '';
+    card.innerHTML = `
+      <div class="prog-card-banner" style="background:${catColor(prog.cat)}">
+        ${prog.icon}
+        <span class="prog-card-badge badge-${prog.level}">${prog.levelLabel}</span>
+      </div>
+      <div class="prog-card-body">
+        <div class="prog-card-name">${genderTag} ${prog.name}</div>
+        <div class="prog-card-meta">
+          <span>📅 ${prog.weeks} sem.</span>
+          <span>🏋️ ${prog.days}j/sem</span>
+        </div>
+      </div>
+    `;
+    grid.appendChild(card);
+  });
+}
+
+function catColor(cat) {
+  if (cat==='musculation') return 'rgba(239,68,68,0.1)';
+  if (cat==='cardio') return 'rgba(64,232,192,0.1)';
+  if (cat==='perte') return 'rgba(251,146,60,0.15)';
+  return 'rgba(232,240,64,0.1)';
+}
+
+
+function openDetailModal(prog) {
+  selectedProgram = prog;
+  document.getElementById('modalTitle').textContent = prog.name;
+  const genreTag = prog.genre === 'homme' ? '<span>♂ Homme</span>' : prog.genre === 'femme' ? '<span style="color:#f472b6">♀ Femme</span>' : '';
+  document.getElementById('modalMeta').innerHTML = `
+    <span>📅 ${prog.weeks} semaines</span>
+    <span>🏋️ ${prog.days} jours/sem</span>
+    <span class="prog-card-badge badge-${prog.level}" style="position:static">${prog.levelLabel}</span>
+    ${genreTag}
+  `;
+  document.getElementById('modalDesc').textContent = prog.desc;
+
+  // Show first 3 weeks preview
+  const weeksEl = document.getElementById('modalWeeks');
+  weeksEl.innerHTML = '<div style="font-size:12px;color:var(--muted);margin-bottom:10px;font-weight:600;letter-spacing:1px;text-transform:uppercase">Aperçu du programme</div>';
+  for (let w = 1; w <= Math.min(prog.weeks, 3); w++) {
+    const rows = prog.template(w);
+    const div = document.createElement('div');
+    div.className = 'prog-week-preview';
+    div.innerHTML = `
+      <div class="prog-week-preview-name">Semaine ${w}</div>
+      <div class="prog-week-preview-days">${rows.map(r=>r.day).join(' · ')}</div>
+    `;
+    weeksEl.appendChild(div);
+  }
+  if (prog.weeks > 3) {
+    weeksEl.innerHTML += `<div style="text-align:center;color:var(--muted);font-size:13px;padding:10px">+ ${prog.weeks-3} semaines supplémentaires…</div>`;
+  }
+
+  document.getElementById('progDetailModal').style.display = 'flex';
+}
+
+function closeDetailModal(e) {
+  if (!e || !document.getElementById('progDetailCard').contains(e.target))
+    document.getElementById('progDetailModal').style.display = 'none';
+}
+
+function loadSelectedProgram() {
+  if (!selectedProgram) return;
+  const prog = selectedProgram;
+
+  // Generate all weeks
+  for (let w = 1; w <= prog.weeks; w++) {
+    const rows = prog.template(w);
+    weeks.push({ name: `S${weeks.length + 1} — ${prog.name}`, rows });
+  }
+
+  renderSidebar();
+  showWeek(weeks.length - prog.weeks); // show first week of loaded program
+  scheduleAutoSave();
+  closeDetailModal();
+  closeProgramScreen();
+  showToast(`Programme "${prog.name}" chargé (${prog.weeks} semaines) ✔`, 'ok');
+}
+
+function createManual() {
+  weeks.push({ name: 'S' + (weeks.length + 1), rows: [
+    { day:'Lundi',    exercises:[{name:'',valid:''}] },
+    { day:'Mercredi', exercises:[{name:'',valid:''}] },
+    { day:'Vendredi', exercises:[{name:'',valid:''}] },
+  ]});
+  renderSidebar();
+  showWeek(weeks.length - 1);
+  scheduleAutoSave();
+  closeProgramScreen();
+}
+
+// ════════════════════════════════════════
+// IMPORT EXCEL
+// ════════════════════════════════════════
+function onImport(e) {
+  const file = e.target.files[0]; if (!file) return;
+  const reader = new FileReader();
+  reader.onload = ev => {
+    try {
+      const wb = XLSX.read(new Uint8Array(ev.target.result),{type:'array'});
+      for (const sheetName of wb.SheetNames) {
+        const raw = XLSX.utils.sheet_to_json(wb.Sheets[sheetName],{header:1,defval:''});
+        const rows = [];
+        for (const r of raw) {
+          const day  = String(r[0]||'').trim();
+          const prog = String(r[1]||'').trim();
+          if (!day&&!prog) continue;
+          rows.push({day, exercises:parseExercises(prog)});
+        }
+        weeks.push({name:sheetName, rows});
+      }
+      renderSidebar(); if (weeks.length) showWeek(weeks.length-1);
+      scheduleAutoSave();
+      showToast(`${wb.SheetNames.length} semaine(s) importée(s) !`,'ok');
+    } catch(err){showToast('Erreur import','err');}
+  };
+  reader.readAsArrayBuffer(file);
+  e.target.value='';
+}
+
+function parseExercises(prog) {
+  if (!prog) return [{name:'',valid:''}];
+  if (prog.includes('/')) return prog.split('/').map(s=>({name:s.trim(),valid:''}));
+  return [{name:prog,valid:''}];
+}
+
+// ════════════════════════════════════════
+// SIDEBAR
+// ════════════════════════════════════════
+function renderSidebar() {
+  const list = document.getElementById('sbList');
+  list.innerHTML = '';
+  weeks.forEach((w,i) => {
+    const {done,total} = weekStats(i);
+    const dot = total===0?'':done===total?'done':done>0?'part':'';
+    const el = document.createElement('div');
+    el.className = 'week-btn'+(i===cur?' active':'');
+    el.innerHTML = `<span>${esc(w.name)}</span><div class="wdot ${dot}"></div>`;
+    el.onclick = () => showWeek(i);
+    list.appendChild(el);
+  });
+  updateGlobalBar();
+}
+
+function weekStats(wi) {
+  let done=0,total=0;
+  for (const row of weeks[wi].rows)
+    for (const ex of row.exercises)
+      if (ex.name){total++;if(ex.valid==='1')done++;}
+  return {done,total};
+}
+
+function updateGlobalBar() {
+  let done=0,total=0;
+  weeks.forEach((_,i)=>{const s=weekStats(i);done+=s.done;total+=s.total;});
+  const pct = total>0?Math.round(done/total*100):0;
+  document.getElementById('gFill').style.width = pct+'%';
+  document.getElementById('gPct').textContent = pct+'%';
+}
+
+// ════════════════════════════════════════
+// WEEK VIEW
+// ════════════════════════════════════════
+function showWeek(i) {
+  cur = i;
+  document.getElementById('emptyState').style.display = 'none';
+  document.getElementById('weekView').style.display = 'block';
+  document.querySelectorAll('.week-btn').forEach((el,j)=>el.classList.toggle('active',j===i));
+  renderWeekView(i);
+}
+
+function renderWeekView(wi) {
+  const w = weeks[wi];
+  const {done,total} = weekStats(wi);
+  const pct = total>0?Math.round(done/total*100):0;
+  document.getElementById('weekView').innerHTML = `
+    <div class="week-hdr">
+      <h1>Semaine <span>${esc(w.name)}</span></h1>
+      <p>Appuie sur ✔ pour valider, ✖ pour un raté</p>
+      <div class="wstats" id="wstats">
+        <div class="stat-chip"><div class="chip-dot" style="background:var(--green)"></div>${done}/${total} validés</div>
+        <div class="stat-chip"><div class="chip-dot" style="background:var(--accent)"></div>${pct}%</div>
+      </div>
+    </div>
+    <div id="dayBlocks"></div>
+    <button class="add-row-card" onclick="addRow(${wi})">➕ Ajouter une séance</button>
+  `;
+  renderDayBlocks(wi);
+}
+
+function renderDayBlocks(wi) {
+  const container = document.getElementById('dayBlocks');
+  if (!container) return;
+  container.innerHTML = '';
+  weeks[wi].rows.forEach((row, ri) => {
+    const exs = row.exercises;
+    const multi = exs.length > 1;
+    const rowDone = exs.filter(e=>e.valid==='1').length;
+    const block = document.createElement('div');
+    block.className = 'day-block';
+    const hdr = document.createElement('div');
+    hdr.className = 'day-block-header';
+    hdr.innerHTML = `<span class="day-label">${esc(row.day)||'<span style="color:var(--muted)">Jour</span>'}</span><span class="day-progress">${multi?rowDone+'/'+exs.length:''}</span>`;
+    const delBtn = document.createElement('button');
+    delBtn.className = 'day-delete-btn';
+    delBtn.title = 'Supprimer ce jour';
+    delBtn.textContent = '🗑';
+    delBtn.onclick = () => deleteRow(wi, ri);
+    hdr.appendChild(delBtn);
+    block.appendChild(hdr);
+    exs.forEach((ex,ei)=>{
+      const vClass = ex.valid==='1'?'v-ok':ex.valid==='0'?'v-ko':'';
+      const row2 = document.createElement('div');
+      row2.className = 'exercise-row'+(vClass?' '+vClass:'');
+      if (multi){const dot=document.createElement('div');dot.className='ex-multi-dot';row2.appendChild(dot);}
+      const name = document.createElement('div');
+      name.className='ex-name-text'; name.textContent=ex.name||'—';
+      row2.appendChild(name);
+      const btns = document.createElement('div');
+      btns.className = 'val-btns';
+      const btnOk = document.createElement('button');
+      btnOk.className='val-btn'+(ex.valid==='1'?' active-ok':'');
+      btnOk.textContent='✔';
+      btnOk.onclick=()=>tapValid(wi,ri,ei,ex.valid==='1'?'':'1');
+      const btnKo = document.createElement('button');
+      btnKo.className='val-btn'+(ex.valid==='0'?' active-ko':'');
+      btnKo.textContent='✖';
+      btnKo.onclick=()=>tapValid(wi,ri,ei,ex.valid==='0'?'':'0');
+      btns.appendChild(btnOk); btns.appendChild(btnKo);
+      row2.appendChild(btns);
+      block.appendChild(row2);
+    });
+    container.appendChild(block);
+  });
+}
+
+function tapValid(wi,ri,ei,newVal) {
+  weeks[wi].rows[ri].exercises[ei].valid = newVal;
+  renderDayBlocks(wi); updateStatsChips(wi); renderSidebar(); scheduleAutoSave();
+}
+
+function updateStatsChips(wi) {
+  const el=document.getElementById('wstats'); if(!el)return;
+  const {done,total}=weekStats(wi);
+  const pct=total>0?Math.round(done/total*100):0;
+  el.innerHTML=`
+    <div class="stat-chip"><div class="chip-dot" style="background:var(--green)"></div>${done}/${total} validés</div>
+    <div class="stat-chip"><div class="chip-dot" style="background:var(--accent)"></div>${pct}%</div>
+  `;
+}
+
+function addRow(wi) {
+  weeks[wi].rows.push({day:'',exercises:[{name:'',valid:''}]});
+  renderDayBlocks(wi); updateStatsChips(wi); scheduleAutoSave();
+}
+
+function deleteRow(wi, ri) {
+  if (weeks[wi].rows.length <= 1) {
+    showToast('Impossible de supprimer le dernier jour.', 'err');
+    return;
+  }
+  weeks[wi].rows.splice(ri, 1);
+  renderDayBlocks(wi); updateStatsChips(wi); renderSidebar(); scheduleAutoSave();
+  showToast('Jour supprimé', 'info');
+}
+
+// ════════════════════════════════════════
+// MOBILE PANELS
+// ════════════════════════════════════════
+function openWeekPanel() {
+  const list = document.getElementById('weekPanelList');
+  list.innerHTML = '';
+  weeks.forEach((w,i)=>{
+    const {done,total}=weekStats(i);
+    const dot=total===0?'':done===total?'done':done>0?'part':'';
+    const el=document.createElement('div');
+    el.className='week-panel-item'+(i===cur?' active':'');
+    el.innerHTML=`<span>${esc(w.name)}</span><div class="wdot ${dot}"></div>`;
+    el.onclick=()=>{showWeek(i);closeWeekPanel();};
+    list.appendChild(el);
+  });
+  document.getElementById('weekPanel').style.display='block';
+}
+function closeWeekPanel(e){if(!e||!document.getElementById('weekPanelCard').contains(e.target))document.getElementById('weekPanel').style.display='none';}
+function openProfile(){document.getElementById('profilePanel').style.display='block';}
+function closeProfile(e){if(!e||!document.getElementById('profileCard').contains(e.target))document.getElementById('profilePanel').style.display='none';}
+function bnavGo(){}
+
+// ════════════════════════════════════════
+// TOAST / UTILS
+// ════════════════════════════════════════
+let _tt;
+function showToast(msg,type){
+  const t=document.getElementById('toast');
+  t.textContent=msg; t.className='toast show '+(type||'');
+  clearTimeout(_tt); _tt=setTimeout(()=>t.className='toast',3500);
+}
+function esc(s){return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
+</script>
+</body>
+</html>
